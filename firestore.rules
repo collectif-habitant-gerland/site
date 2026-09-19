@@ -1,0 +1,68 @@
+rules_version = '2';
+
+// Règles de sécurité du site « La voix des habitants – Gerland ».
+// À copier dans la console Firebase : Firestore Database › Règles › Publier.
+//
+// - Les habitants (connexion anonyme) peuvent seulement déposer ou modifier LEUR avis.
+//   Ils ne peuvent lire ni lister les avis des autres.
+// - Seul le compte Google du collectif (le cockpit) lit l'ensemble des données.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function estAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'collectif.habitant.erilia@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function avisValide(d) {
+      return d.keys().hasOnly(['uid', 'periode', 'residence', 'batiment', 'notes', 'ameliorations', 'priorite', 'envoyeLe'])
+        && d.uid == request.auth.uid
+        && d.residence == 'gerland'
+        && d.periode is string && d.periode.matches('^[0-9]{4}-[0-9]{2}$')
+        && d.batiment in ['11', '44', '48', '50']
+        && d.notes is map
+        && d.notes.keys().hasOnly(['information', 'ecoute', 'acces', 'garages', 'eau', 'chauffage', 'ascenseurs', 'proprete', 'nuisibles', 'etat', 'quartier'])
+        && d.ameliorations is list && d.ameliorations.size() <= 12
+        && (d.priorite == null || d.priorite is string)
+        && d.envoyeLe == request.time;
+    }
+
+    // Un avis par téléphone et par période : identifiant = « période_identifiant-anonyme ».
+    match /avis/{avisId} {
+      function estLeSien() {
+        return request.auth != null && avisId.matches('^[0-9]{4}-[0-9]{2}_' + request.auth.uid + '$');
+      }
+      allow get: if estAdmin() || estLeSien();
+      allow list: if estAdmin();
+      allow create: if estLeSien()
+        && avisId == request.resource.data.periode + '_' + request.auth.uid
+        && avisValide(request.resource.data);
+      allow update: if estLeSien()
+        && request.resource.data.periode == resource.data.periode
+        && avisValide(request.resource.data);
+      allow delete: if estAdmin();
+    }
+
+    // Nombre de participants par période (affiché sur l'écran « Merci »).
+    // Ne peut augmenter que de 1, et seulement au moment où un nouvel avis est créé.
+    match /compteurs/{periode} {
+      function nouvelAvis() {
+        return request.auth != null
+          && existsAfter(/databases/$(database)/documents/avis/$(periode + '_' + request.auth.uid))
+          && !exists(/databases/$(database)/documents/avis/$(periode + '_' + request.auth.uid));
+      }
+      allow get: if true;
+      allow list: if estAdmin();
+      allow create: if nouvelAvis() && request.resource.data.keys().hasOnly(['total']) && request.resource.data.total == 1;
+      allow update: if estAdmin()
+        || (nouvelAvis() && request.resource.data.keys().hasOnly(['total']) && request.resource.data.total == resource.data.total + 1);
+      allow delete: if estAdmin();
+    }
+
+    // Tout le reste est fermé.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -2,25 +2,68 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex">
-  <title>Collectif des habitants de Gerland</title>
-  <style>
-    :root { --fond: #f6f7f4; --texte: #1f2a24; --accent: #2f7d4f; }
-    body {
-      margin: 0; min-height: 100vh; display: grid; place-items: center;
-      background: var(--fond); color: var(--texte);
-      font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-      padding: 16px; box-sizing: border-box; text-align: center;
-    }
-    h1 { font-size: clamp(1.6rem, 5vw, 2.4rem); margin: 0 0 .5rem; color: var(--accent); }
-    p { font-size: 1.1rem; margin: 0; }
-  </style>
+  <meta name="theme-color" content="#f6f3ec">
+  <title>La voix des habitants – Gerland</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
-  <main>
-    <h1>Collectif des habitants de Gerland</h1>
-    <p>Site en construction.</p>
-  </main>
+  <div class="page">
+    <header class="marque">
+      <div class="marque-logo" id="logo"></div>
+      <div>La voix des habitants<small>Gerland</small></div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>Ensemble, on fait <em>avancer</em> la résidence.</h1>
+        <p>Deux minutes, quelques touches, sans rien écrire. Vos réponses, anonymes, sont réunies dans un compte rendu remis au bailleur.</p>
+        <div class="periode" id="periode"></div>
+      </section>
+
+      <nav class="tuiles" aria-label="Que voulez-vous faire ?">
+        <a class="tuile principale" href="avis.html">
+          <div class="tuile-ic" data-ic="avis"></div>
+          <div class="tuile-texte"><strong>Donner mon avis</strong><span>2 minutes · anonyme</span></div>
+          <span data-ic="suivant" data-classe="ic-suivant"></span>
+        </a>
+        <div class="tuile bientot" aria-disabled="true">
+          <div class="tuile-ic" data-ic="signaler"></div>
+          <div class="tuile-texte"><strong>Signaler un problème</strong><span>30 secondes</span></div>
+          <span class="badge-bientot">Bientôt</span>
+        </div>
+        <div class="tuile bientot" aria-disabled="true">
+          <div class="tuile-ic" data-ic="avancees"></div>
+          <div class="tuile-texte"><strong>Ce qui a changé</strong><span>Les avancées obtenues</span></div>
+          <span class="badge-bientot">Bientôt</span>
+        </div>
+      </nav>
+
+      <ul class="engagements">
+        <li><span data-ic="cadenas"></span><span><strong>Anonyme.</strong> Ni nom, ni étage, ni numéro d’appartement : seulement le bâtiment.</span></li>
+        <li><span data-ic="groupe"></span><span><strong>Collectif.</strong> On parle de la résidence et de ses équipements, jamais de situations personnelles.</span></li>
+        <li><span data-ic="coeur"></span><span><strong>Constructif.</strong> Ce qui va bien compte autant que ce qui reste à améliorer.</span></li>
+      </ul>
+    </main>
+
+    <footer class="pied">
+      Initiative de résidents, indépendante du bailleur.
+    </footer>
+  </div>
+
+  <script src="assets/config.js"></script>
+  <script src="assets/icons.js"></script>
+  <script>
+    (function () {
+      const I = window.VoixIcons;
+      document.getElementById('logo').innerHTML = I.icone('ecoute');
+      document.querySelectorAll('[data-ic]').forEach(el => { el.innerHTML = I.icone(el.dataset.ic, el.dataset.classe); });
+      document.getElementById('periode').textContent = 'Période : ' + window.VOIX_CONFIG.periode.libelle;
+    })();
+  </script>
 </body>
 </html>

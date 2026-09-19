@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#f6f3ec">
+  <title>Donner mon avis – La voix des habitants</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="barre">
+      <button class="btn-rond" id="btn-retour" type="button" aria-label="Revenir à la question précédente"></button>
+      <div class="progression" id="progression" aria-live="polite">
+        <div class="progression-texte" id="progression-texte"></div>
+        <div class="progression-piste"><div class="progression-jauge" id="progression-jauge"></div></div>
+      </div>
+      <button class="btn-rond" id="btn-fermer" type="button" aria-label="Fermer et revenir à l’accueil"></button>
+    </div>
+    <main id="ecran" class="ecran" tabindex="-1"></main>
+  </div>
+  <div id="mode-test" class="mode-test" hidden>Mode test · les réponses restent sur cet appareil</div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="assets/firebase-config.js"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/icons.js"></script>
+  <script src="assets/store.js"></script>
+  <script src="assets/avis.js"></script>
+</body>
+</html>
