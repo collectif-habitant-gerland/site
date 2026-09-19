@@ -8,6 +8,9 @@ window.VOIX_CONFIG = {
   signature: 'Les résidents Erilia – Debourg',
   adresses: '11 rue Jacques-Monod · 44, 48 et 50 avenue Debourg',
 
+  // Nombre de logements de la résidence (d'après le décompte des compteurs d'eau chaude cité dans le groupe : 87).
+  logements: 87,
+
   batiments: [
     { id: '11', libelle: '11', rue: 'rue Jacques-Monod' },
     { id: '44', libelle: '44', rue: 'avenue Debourg' },

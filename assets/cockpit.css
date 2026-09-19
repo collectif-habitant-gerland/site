@@ -1,0 +1,114 @@
+/* Cockpit du pilote : lecture des avis, période, exports. */
+body.cockpit { font-size: 16px; }
+.ck-entete {
+  max-width: 1120px; margin: 0 auto; padding: 0 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+}
+.ck-compte { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; font-size: 14px; color: var(--doux); }
+.ck-compte span { overflow-wrap: anywhere; }
+.ck-page { max-width: 1120px; margin: 0 auto; padding: 8px 20px 60px; }
+
+.ck-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 42px; padding: 0 16px; border-radius: 12px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--ligne); font-weight: 700; font-size: 14.5px;
+  transition: background .15s ease, transform .1s ease;
+}
+.ck-btn:hover { background: #fbfaf6; }
+.ck-btn:active { transform: scale(.98); }
+.ck-btn .ic { width: 18px; height: 18px; }
+.ck-btn.principal { background: var(--vert); border-color: var(--vert); color: #fff; }
+.ck-btn.principal:hover { background: var(--vert-fonce); }
+.ck-btn.danger { color: var(--alerte); }
+.ck-btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+/* Connexion */
+.ck-connexion {
+  max-width: 460px; margin: 60px auto; padding: 32px 28px; text-align: center;
+  background: var(--surface); border: 1px solid var(--ligne); border-radius: 24px; box-shadow: var(--ombre);
+}
+.ck-connexion h1 { font-size: 26px; margin: 16px 0 8px; letter-spacing: -.01em; }
+.ck-connexion p { color: var(--doux); margin: 0 0 22px; }
+.ck-connexion .intro-ic { margin: 0 auto; }
+.ck-google { width: 100%; justify-content: center; min-height: 52px; font-size: 16px; }
+.ck-message { margin-top: 14px; color: var(--alerte); font-weight: 600; font-size: 14.5px; }
+
+/* Barre d'outils */
+.ck-outils { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 18px 0 20px; }
+.ck-outils h1 { font-size: 28px; margin: 0; letter-spacing: -.02em; flex: 1 1 auto; }
+.ck-select {
+  min-height: 42px; padding: 0 36px 0 14px; border-radius: 12px; border: 1px solid var(--ligne);
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6a62' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center / 18px;
+  font: inherit; font-weight: 700; appearance: none; -webkit-appearance: none; cursor: pointer;
+}
+.ck-puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.ck-puce {
+  min-height: 36px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--ligne); background: var(--surface); font-weight: 700; font-size: 14px;
+}
+.ck-puce[aria-pressed="true"] { background: var(--encre); border-color: var(--encre); color: #fff; }
+
+/* Grille de cartes */
+.ck-grille { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+.ck-carte {
+  grid-column: span 12; background: var(--surface); border: 1px solid var(--ligne);
+  border-radius: 20px; box-shadow: var(--ombre); padding: 20px;
+}
+@media (min-width: 860px) {
+  .ck-carte.demi { grid-column: span 6; }
+  .ck-carte.tiers { grid-column: span 4; }
+}
+.ck-carte h2 { font-size: 17px; margin: 0 0 4px; }
+.ck-carte .ck-sous { color: var(--doux); font-size: 14px; margin: 0 0 16px; }
+
+.ck-chiffre { font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: -.03em; color: var(--vert); }
+.ck-chiffre small { font-size: 16px; color: var(--doux); font-weight: 600; letter-spacing: 0; }
+.ck-jauge { height: 10px; border-radius: 99px; background: var(--ligne); overflow: hidden; margin-top: 14px; }
+.ck-jauge > div { height: 100%; background: var(--vert); border-radius: 99px; }
+
+/* Barres horizontales simples */
+.ck-barres { display: grid; gap: 10px; }
+.ck-barre { display: grid; grid-template-columns: minmax(90px, 38%) 1fr 44px; align-items: center; gap: 10px; font-size: 14.5px; }
+.ck-barre-piste { height: 12px; border-radius: 99px; background: #f0ede5; overflow: hidden; }
+.ck-barre-piste > div { height: 100%; background: var(--vert); border-radius: 99px; }
+.ck-barre-nb { text-align: right; font-weight: 700; }
+
+/* Satisfaction par thème : barres empilées */
+.ck-themes { display: grid; gap: 14px; }
+.ck-theme { display: grid; grid-template-columns: 34px minmax(140px, 30%) 1fr 150px; align-items: center; gap: 12px; }
+.ck-theme-ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--vert-pale); color: var(--vert); }
+.ck-theme-ic .ic { width: 19px; height: 19px; }
+.ck-theme-titre { font-weight: 700; font-size: 14.5px; line-height: 1.3; }
+.ck-empile { display: flex; height: 22px; border-radius: 8px; overflow: hidden; background: #f0ede5; }
+.ck-empile > div { height: 100%; }
+.ck-empile .s1 { background: var(--v1); } .ck-empile .s2 { background: var(--v2); }
+.ck-empile .s3 { background: var(--v3); } .ck-empile .s4 { background: var(--v4); }
+.ck-theme-score { font-size: 13.5px; color: var(--doux); text-align: right; }
+.ck-theme-score strong { display: block; font-size: 16px; color: var(--encre); }
+.ck-legende { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 16px; font-size: 13px; color: var(--doux); }
+.ck-legende span { display: inline-flex; align-items: center; gap: 6px; }
+.ck-legende i { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+@media (max-width: 700px) {
+  .ck-theme { grid-template-columns: 34px 1fr; }
+  .ck-empile, .ck-theme-score { grid-column: 2; }
+  .ck-theme-score { text-align: left; }
+  .ck-theme-score strong { display: inline; margin-right: 6px; }
+}
+
+/* Participation par jour */
+.ck-jours { display: flex; align-items: flex-end; gap: 4px; height: 120px; padding-top: 8px; overflow-x: auto; }
+.ck-jour { flex: 1 0 18px; max-width: 42px; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+.ck-jour-col { width: 100%; background: var(--vert); border-radius: 6px 6px 2px 2px; min-height: 3px; }
+.ck-jour span { font-size: 11px; color: var(--doux); white-space: nowrap; }
+
+/* Liste des avis */
+.ck-table-zone { overflow-x: auto; }
+.ck-table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.ck-table th { text-align: left; font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--doux); padding: 8px 10px; border-bottom: 1px solid var(--ligne); }
+.ck-table td { padding: 10px; border-bottom: 1px solid #f0ede5; vertical-align: middle; }
+.ck-table tr:last-child td { border-bottom: 0; }
+.ck-table .ck-btn { min-height: 34px; padding: 0 10px; font-size: 13px; }
+
+.ck-vide { color: var(--doux); text-align: center; padding: 26px 10px; }
+.ck-actions-bas { display: flex; flex-wrap: wrap; gap: 10px; }
+.ck-note { font-size: 13px; color: var(--doux); margin-top: 12px; }
