@@ -46,7 +46,7 @@
         const deja = (await refAvis.get()).exists;
         const donnees = {
           uid: u.uid, periode, residence: window.VOIX_CONFIG.residence,
-          batiment: reponses.batiment, notes: reponses.notes,
+          notes: reponses.notes,
           ameliorations: reponses.ameliorations, priorite: reponses.priorite || null,
           envoyeLe: firebase.firestore.FieldValue.serverTimestamp()
         };

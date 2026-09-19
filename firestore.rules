@@ -16,11 +16,10 @@ service cloud.firestore {
     }
 
     function avisValide(d) {
-      return d.keys().hasOnly(['uid', 'periode', 'residence', 'batiment', 'notes', 'ameliorations', 'priorite', 'envoyeLe'])
+      return d.keys().hasOnly(['uid', 'periode', 'residence', 'notes', 'ameliorations', 'priorite', 'envoyeLe'])
         && d.uid == request.auth.uid
         && d.residence == 'gerland'
         && d.periode is string && d.periode.matches('^[0-9]{4}-[0-9]{2}(-[0-9]{2})?(-[0-9]+)?$')
-        && d.batiment in ['11', '44', '48', '50']
         && d.notes is map
         && d.notes.keys().hasOnly(['information', 'ecoute', 'acces', 'garages', 'eau', 'chauffage', 'ascenseurs', 'proprete', 'nuisibles', 'etat', 'quartier'])
         && d.ameliorations is list && d.ameliorations.size() <= 12

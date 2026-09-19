@@ -136,8 +136,8 @@
     }
 
     // Méthode
-    h += '<section class="rp-bloc rp-methode"><h2>Méthode</h2><p>Questionnaire en ligne, anonyme, proposé à l’ensemble des résidents. Seul le bâtiment est demandé : ni nom, ni étage, ni numéro de logement. ' +
-      'Un avis par téléphone, modifiable pendant la période. Les questions portent uniquement sur la vie collective de la résidence, jamais sur des situations individuelles. ' +
+    h += '<section class="rp-bloc rp-methode"><h2>Méthode</h2><p>Questionnaire en ligne, anonyme, proposé à l’ensemble des résidents. Aucune information personnelle n’est demandée : ni nom, ni adresse, ni bâtiment. ' +
+      'Un avis par téléphone, modifiable tant que la consultation est ouverte. Les questions portent uniquement sur la vie collective de la résidence, jamais sur des situations individuelles. ' +
       'Pour chaque thème, la satisfaction correspond à la part des réponses « plutôt bien » et « très bien ».</p></section>';
 
     // Réponse aux résidents

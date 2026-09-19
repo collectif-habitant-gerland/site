@@ -8,7 +8,7 @@
   const DELAI_AVANCE = 400;
 
   // ---------- Étapes ----------
-  const etapes = [{ id: 'intro', type: 'intro' }, { id: 'batiment', type: 'batiment' }]
+  const etapes = [{ id: 'intro', type: 'intro' }]
     .concat(C.themes.map(t => ({ id: t.id, type: 'note', theme: t })))
     .concat([{ id: 'ameliorations', type: 'ameliorations' }, { id: 'priorite', type: 'priorite' }, { id: 'recap', type: 'recap' }]);
   const questions = etapes.filter(e => e.type !== 'intro' && e.type !== 'recap');
@@ -25,9 +25,9 @@
   let fermee = null;         // 'pause' ou 'close' quand le pilote a arrêté les réponses
   let dejaEnvoye = null;     // avis déjà envoyé depuis ce téléphone pour la période
 
-  function brouillonVide() { return { batiment: null, notes: {}, ameliorations: [], priorite: null, derniere: 'intro' }; }
+  function brouillonVide() { return { notes: {}, ameliorations: [], priorite: null, derniere: 'intro' }; }
   function aDesReponses() {
-    return !!(rep.batiment || Object.keys(rep.notes).length || rep.ameliorations.length || rep.priorite);
+    return !!(Object.keys(rep.notes).length || rep.ameliorations.length || rep.priorite);
   }
   function sauver() {
     try { localStorage.setItem(CLE_BROUILLON, JSON.stringify(rep)); } catch (e) { /* stockage indisponible */ }
@@ -100,7 +100,7 @@
     }
     document.getElementById('progression').style.visibility = etape.type === 'intro' ? 'hidden' : '';
 
-    const rendus = { intro: rendreIntro, batiment: rendreBatiment, note: rendreNote, ameliorations: rendreAmeliorations, priorite: rendrePriorite, recap: rendreRecap };
+    const rendus = { intro: rendreIntro, note: rendreNote, ameliorations: rendreAmeliorations, priorite: rendrePriorite, recap: rendreRecap };
     $ecran.innerHTML = rendus[etape.type](etape);
     $ecran.className = 'ecran entre-' + sens;
     brancher(etape);
@@ -152,17 +152,9 @@
       '<p class="detail">Quelques touches, question après question. Vous pouvez revenir en arrière à tout moment.</p>' +
       '<ul class="points">' +
       '<li>' + icone('horloge') + 'Environ 2 minutes, sans rien écrire</li>' +
-      '<li>' + icone('cadenas') + 'Anonyme : seulement votre bâtiment</li>' +
+      '<li>' + icone('cadenas') + 'Anonyme : aucune information personnelle</li>' +
       '<li>' + icone('groupe') + 'Uniquement la vie collective de la résidence</li>' +
       '</ul>' + actions + '</div>';
-  }
-
-  function rendreBatiment() {
-    return enTete('batiment', 'Votre bâtiment', 'Dans quel bâtiment habitez-vous ?', 'Seule information demandée. Ni étage, ni appartement.') +
-      '<div class="batiments">' + C.batiments.map(b =>
-        '<button type="button" class="choix-batiment" data-batiment="' + b.id + '" aria-pressed="' + (rep.batiment === b.id) + '">' +
-        '<strong>' + esc(b.libelle) + '</strong><span>' + esc(b.rue) + '</span></button>').join('') +
-      '</div>' + boutonsBas({ passer: false }) + '</div>';
   }
 
   function rendreNote(etape) {
@@ -200,14 +192,13 @@
   }
 
   function rendreRecap() {
-    const bat = C.batiments.find(b => b.id === rep.batiment);
+    const vide = !aDesReponses();
     const titreTheme = id => (C.themes.find(t => t.id === id) || {}).titre || '';
     const ligne = (id, titre, valeur, classe) =>
       '<button type="button" class="recap-ligne ' + (classe || '') + '" data-modifier="' + id + '">' +
       '<span class="recap-titre">' + esc(titre) + '</span><span class="recap-valeur">' + valeur + '</span>' + icone('modifier', 'ic-modifier') + '</button>';
 
     let h = enTete('valider', 'Dernière étape', 'Vérifiez vos réponses', 'Touchez une ligne pour la modifier.') + '<div class="recap">';
-    h += ligne('batiment', 'Bâtiment', bat ? esc(bat.libelle + ' ' + bat.rue) : 'À choisir', bat ? '' : 'manquant');
     h += '<div class="recap-intertitre">Votre avis par thème</div>';
     C.themes.forEach(t => {
       const n = rep.notes[t.id];
@@ -220,8 +211,8 @@
     h += ligne('ameliorations', 'Ce qui s’est amélioré', esc(am));
     h += ligne('priorite', 'Priorité n° 1', rep.priorite ? esc(titreTheme(rep.priorite)) : '—');
     h += '</div><div id="zone-erreur"></div><div class="actions">' +
-      '<button type="button" class="btn btn-principal" data-action="envoyer"' + (bat ? '' : ' disabled') + '>' + icone('valider') + 'Envoyer mon avis</button>' +
-      (bat ? '' : '<p class="detail" style="text-align:center;margin:0">Choisissez votre bâtiment pour pouvoir envoyer.</p>') +
+      '<button type="button" class="btn btn-principal" data-action="envoyer"' + (vide ? ' disabled' : '') + '>' + icone('valider') + 'Envoyer mon avis</button>' +
+      (vide ? '<p class="detail" style="text-align:center;margin:0">Donnez au moins un avis pour pouvoir envoyer.</p>' : '') +
       '</div></div>';
     return h;
   }
@@ -273,13 +264,6 @@
       bouton.innerHTML = icone('cadenas') + 'Valider le code';
       champ.select();
     });
-
-    $ecran.querySelectorAll('[data-batiment]').forEach(b => b.addEventListener('click', () => {
-      rep.batiment = b.dataset.batiment;
-      marquer('[data-batiment]', b);
-      sauver();
-      avancerBientot();
-    }));
 
     $ecran.querySelectorAll('[data-note]').forEach(b => b.addEventListener('click', () => {
       const v = Number(b.dataset.note);
@@ -349,7 +333,7 @@
       case 'modifier': {
         const d = dejaEnvoye;
         rep = Object.assign(brouillonVide(), {
-          batiment: d.batiment, notes: Object.assign({}, d.notes), ameliorations: (d.ameliorations || []).slice(), priorite: d.priorite || null
+          notes: Object.assign({}, d.notes), ameliorations: (d.ameliorations || []).slice(), priorite: d.priorite || null
         });
         sauver();
         aller(indexDe('recap'));
@@ -363,7 +347,7 @@
   }
 
   async function envoyer() {
-    if (envoiEnCours || !rep.batiment) return;
+    if (envoiEnCours || !aDesReponses()) return;
     envoiEnCours = true;
     const bouton = $ecran.querySelector('[data-action="envoyer"]');
     const zone = document.getElementById('zone-erreur');
@@ -371,7 +355,7 @@
     bouton.disabled = true;
     bouton.textContent = 'Envoi…';
     try {
-      const envoi = { batiment: rep.batiment, notes: rep.notes, ameliorations: rep.ameliorations, priorite: rep.priorite };
+      const envoi = { notes: rep.notes, ameliorations: rep.ameliorations, priorite: rep.priorite };
       await S.envoyer(PERIODE, envoi);
       dejaEnvoye = envoi;
       effacerBrouillon();

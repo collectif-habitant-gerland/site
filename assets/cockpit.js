@@ -14,7 +14,6 @@
 
   let tous = [];                 // tous les avis, toutes périodes
   let periode = C.periode.id;
-  let filtreBat = 'tous';
   let arrets = [];               // arrêts des écoutes en direct
   let rapports = [];             // comptes rendus créés
   let reponses = [];             // messages du bailleur
@@ -23,7 +22,7 @@
   let ouverte = null;            // période ouverte aux avis (réglée ici)
   let periodeChoisie = false;    // le pilote a choisi une consultation dans le menu
   let infosPeriodes = {};        // nom et état de chaque consultation (collection « periodes »)
-  const SEUIL_BATIMENT = 5;      // en dessous, pas de détail par bâtiment (anonymat)
+  const SEUIL_PRECEDENT = 5;     // avis minimum pour comparer avec la consultation précédente
 
   // ---------- Connexion ----------
   auth.onAuthStateChanged(u => {
@@ -109,36 +108,27 @@
     renduEnAttente = false;
     const periodes = Array.from(new Set(tous.map(a => a.periode).concat(C.periode.id, ouverte ? ouverte.id : [], Object.keys(infosPeriodes)))).sort().reverse();
     const avisP = tous.filter(a => a.periode === periode);
-    const avisF = filtreBat === 'tous' ? avisP : avisP.filter(a => a.batiment === filtreBat);
+    const avisF = avisP;
 
     let h = '<div class="ck-outils"><h1>Avis des résidents</h1>' +
       '<select class="ck-select" id="sel-periode" aria-label="Période">' +
       periodes.map(p => '<option value="' + p + '"' + (p === periode ? ' selected' : '') + '>' + esc(libellePeriode(p)) + '</option>').join('') +
-      '</select><div class="ck-puces" role="group" aria-label="Bâtiment">' +
-      [['tous', 'Tous']].concat(C.batiments.map(b => [b.id, b.libelle])).map(([id, lib]) =>
-        '<button class="ck-puce" type="button" data-bat="' + id + '" aria-pressed="' + (filtreBat === id) + '">' + esc(lib) + '</button>').join('') +
-      '</div></div><div class="ck-grille">';
+      '</select></div><div class="ck-grille">';
 
     h += sectionPeriodeOuverte();
 
     // Participation
     const taux = C.logements ? Math.round(avisP.length / C.logements * 100) : null;
-    h += '<section class="ck-carte tiers"><h2>Participation</h2><p class="ck-sous">' + esc(libellePeriode(periode)) + ', tous bâtiments</p>' +
+    h += '<section class="ck-carte demi"><h2>Participation</h2><p class="ck-sous">' + esc(libellePeriode(periode)) + '</p>' +
       '<div class="ck-chiffre">' + avisP.length + ' <small>foyer' + (avisP.length > 1 ? 's' : '') + (C.logements ? ' sur ' + C.logements + ' logements' : '') + '</small></div>' +
       (taux !== null ? '<div class="ck-jauge"><div style="width:' + Math.min(taux, 100) + '%"></div></div><p class="ck-note">' + taux + ' % des logements</p>' : '') + '</section>';
-
-    // Par bâtiment
-    const maxBat = Math.max(1, ...C.batiments.map(b => avisP.filter(a => a.batiment === b.id).length));
-    h += '<section class="ck-carte tiers"><h2>Par bâtiment</h2><p class="ck-sous">Nombre de foyers ayant répondu</p><div class="ck-barres">' +
-      C.batiments.map(b => { const n = avisP.filter(a => a.batiment === b.id).length;
-        return barre(b.libelle + ' ' + b.rue.replace('avenue', 'av.'), n, maxBat); }).join('') + '</div></section>';
 
     // Par jour
     const jours = {};
     avisP.forEach(a => { const d = dateDe(a); if (d) { const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); jours[k] = (jours[k] || 0) + 1; } });
     const cles = Object.keys(jours).sort();
     const maxJ = Math.max(1, ...Object.values(jours));
-    h += '<section class="ck-carte tiers"><h2>Réponses par jour</h2><p class="ck-sous">Pour voir l’effet d’une relance</p>' +
+    h += '<section class="ck-carte demi"><h2>Réponses par jour</h2><p class="ck-sous">Pour voir l’effet d’une relance</p>' +
       (cles.length ? '<div class="ck-jours">' + cles.map(k => '<div class="ck-jour" title="' + jours[k] + ' réponse(s)"><div class="ck-jour-col" style="height:' + Math.round(jours[k] / maxJ * 90) + '%"></div><span>' + k.slice(8) + '/' + k.slice(5, 7) + '</span></div>').join('') + '</div>'
         : '<div class="ck-vide">Pas encore de réponse</div>') + '</section>';
 
@@ -146,7 +136,7 @@
     const stats = C.themes.map(t => Object.assign({ t }, statsTheme(avisF, t.id)))
       .sort((a, b) => (a.satisfaits === null) - (b.satisfaits === null) || (a.satisfaits - b.satisfaits));
     h += '<section class="ck-carte"><h2>Satisfaction par thème</h2><p class="ck-sous">Du plus préoccupant au plus satisfaisant' +
-      (filtreBat !== 'tous' ? ' · bâtiment ' + esc(filtreBat) : '') + ' · ' + avisF.length + ' avis</p><div class="ck-themes">' +
+      ' · ' + avisF.length + ' avis</p><div class="ck-themes">' +
       stats.map(s => '<div class="ck-theme"><div class="ck-theme-ic">' + icone(s.t.icone) + '</div>' +
         '<div class="ck-theme-titre">' + esc(s.t.titre) + '</div>' +
         '<div class="ck-empile" title="Très mal ' + s.dist[1] + ' · Plutôt mal ' + s.dist[2] + ' · Plutôt bien ' + s.dist[3] + ' · Très bien ' + s.dist[4] + '">' +
@@ -168,11 +158,11 @@
 
     // Liste des avis
     const tries = avisF.slice().sort((a, b) => (dateDe(b) || 0) - (dateDe(a) || 0));
-    h += '<section class="ck-carte"><h2>Liste des avis</h2><p class="ck-sous">Anonymes : seulement la date et le bâtiment</p>' +
-      (tries.length ? '<div class="ck-table-zone"><table class="ck-table"><thead><tr><th>Envoyé le</th><th>Bâtiment</th><th>Thèmes notés</th><th>Priorité n° 1</th><th></th></tr></thead><tbody>' +
+    h += '<section class="ck-carte"><h2>Liste des avis</h2><p class="ck-sous">Anonymes : seulement la date d’envoi</p>' +
+      (tries.length ? '<div class="ck-table-zone"><table class="ck-table"><thead><tr><th>Envoyé le</th><th>Thèmes notés</th><th>Priorité n° 1</th><th></th></tr></thead><tbody>' +
         tries.map(a => { const d = dateDe(a);
           return '<tr><td>' + (d ? d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—') + '</td>' +
-            '<td>' + esc(a.batiment || '') + '</td><td>' + Object.keys(a.notes || {}).length + ' / ' + C.themes.length + '</td>' +
+            '<td>' + Object.keys(a.notes || {}).length + ' / ' + C.themes.length + '</td>' +
             '<td>' + esc(a.priorite ? titreTheme(a.priorite) : '—') + '</td>' +
             '<td style="text-align:right"><button class="ck-btn danger" type="button" data-suppr="' + esc(a.id) + '">Supprimer</button></td></tr>'; }).join('') +
         '</tbody></table></div>' : '<div class="ck-vide">Aucun avis pour cette période</div>') + '</section>';
@@ -195,7 +185,6 @@
 
   function brancher() {
     document.getElementById('sel-periode').addEventListener('change', e => { periode = e.target.value; periodeChoisie = true; rendre(); });
-    $app.querySelectorAll('[data-bat]').forEach(b => b.addEventListener('click', () => { filtreBat = b.dataset.bat; rendre(); }));
     $app.querySelectorAll('[data-suppr]').forEach(b => b.addEventListener('click', () => supprimer(b.dataset.suppr)));
     document.getElementById('btn-csv').addEventListener('click', exporterCsv);
     document.getElementById('btn-json').addEventListener('click', exporterJson);
@@ -389,11 +378,9 @@
   // Chiffres agrégés uniquement : aucun avis individuel ne quitte le cockpit.
   function construireInstantane(b) {
     const avisP = tous.filter(a => a.periode === periode);
-    const detailBatiments = C.batiments.filter(bt => avisP.filter(a => a.batiment === bt.id).length >= SEUIL_BATIMENT).map(bt => bt.id);
     const themes = {};
     C.themes.forEach(t => {
-      themes[t.id] = { tous: statsTheme(avisP, t.id).dist, bat: {} };
-      detailBatiments.forEach(id => { themes[t.id].bat[id] = statsTheme(avisP.filter(a => a.batiment === id), t.id).dist; });
+      themes[t.id] = { tous: statsTheme(avisP, t.id).dist };
     });
     const enObjet = paires => paires.reduce((o, [k, n]) => { o[k] = n; return o; }, {});
     const dates = avisP.map(dateDe).filter(Boolean).sort((x, y) => x - y);
@@ -404,15 +391,13 @@
     let precedent = null;
     for (const p of anterieures) {
       const l = tous.filter(a => a.periode === p);
-      if (l.length >= SEUIL_BATIMENT) {
+      if (l.length >= SEUIL_PRECEDENT) {
         precedent = { periode: p, libelle: libellePeriode(p), themes: {} };
         C.themes.forEach(t => { const s = statsTheme(l, t.id); if (s.satisfaits !== null) precedent.themes[t.id] = s.satisfaits; });
         break;
       }
     }
 
-    const parBatiment = {};
-    C.batiments.forEach(bt => { parBatiment[bt.id] = avisP.filter(a => a.batiment === bt.id).length; });
 
     return {
       version: 1,
@@ -422,9 +407,7 @@
       demandes: C.themes.filter(t => b.demandes[t.id].on && b.demandes[t.id].texte.trim()).map(t => ({ theme: t.id, texte: b.demandes[t.id].texte.trim() })),
       creeLe: new Date().toISOString(),
       du: dates.length ? dates[0].toISOString() : null, au: dates.length ? dates[dates.length - 1].toISOString() : null,
-      total: avisP.length, logements: C.logements || null, parBatiment,
-      batiments: C.batiments.map(bt => ({ id: bt.id, libelle: bt.libelle, rue: bt.rue })),
-      detailBatiments, seuilBatiment: SEUIL_BATIMENT,
+      total: avisP.length, logements: C.logements || null,
       themesDef: C.themes.map(t => ({ id: t.id, titre: t.titre, detail: t.detail, icone: t.icone })),
       themes,
       ameliorations: enObjet(compter(avisP, 'ameliorations')),
@@ -453,7 +436,7 @@
   async function supprimer(id) {
     const a = tous.find(x => x.id === id);
     if (!a) return;
-    const ok = await confirmer({ titre: 'Supprimer cet avis ?', texte: 'L’avis du bâtiment ' + (a.batiment || '') + ' sera définitivement effacé, et le compteur de participation diminué de 1.', oui: 'Supprimer', non: 'Annuler' });
+    const ok = await confirmer({ titre: 'Supprimer cet avis ?', texte: 'Cet avis sera définitivement effacé, et le compteur de participation diminué de 1.', oui: 'Supprimer', non: 'Annuler' });
     if (!ok) return;
     try {
       const refC = db.collection('compteurs').doc(a.periode);
@@ -480,9 +463,9 @@
 
   function exporterCsv() {
     const liste = tous.filter(a => a.periode === periode).sort((a, b) => (dateDe(a) || 0) - (dateDe(b) || 0));
-    const entete = ['Envoyé le', 'Période', 'Bâtiment'].concat(C.themes.map(t => t.titre + ' (1 à 4)'), ['Ce qui s’est amélioré', 'Priorité n° 1']);
+    const entete = ['Envoyé le', 'Consultation'].concat(C.themes.map(t => t.titre + ' (1 à 4)'), ['Ce qui s’est amélioré', 'Priorité n° 1']);
     const lignes = liste.map(a => { const d = dateDe(a);
-      return [d ? d.toLocaleString('fr-FR') : '', a.periode, a.batiment]
+      return [d ? d.toLocaleString('fr-FR') : '', libellePeriode(a.periode)]
         .concat(C.themes.map(t => (a.notes || {})[t.id] || ''),
           [(a.ameliorations || []).map(x => x === 'aucun' ? 'Rien de particulier' : titreTheme(x)).join(', '), a.priorite ? titreTheme(a.priorite) : '']); });
     const csv = '﻿' + [entete].concat(lignes).map(l => l.map(cellule).join(';')).join('\r\n');
@@ -491,7 +474,7 @@
 
   function exporterJson() {
     const copie = tous.map(a => { const d = dateDe(a);
-      return { periode: a.periode, batiment: a.batiment, notes: a.notes || {}, ameliorations: a.ameliorations || [], priorite: a.priorite || null, envoyeLe: d ? d.toISOString() : null }; });
+      return { periode: a.periode, notes: a.notes || {}, ameliorations: a.ameliorations || [], priorite: a.priorite || null, envoyeLe: d ? d.toISOString() : null }; });
     telecharger('voix-habitants_copie-complete_' + aujourdhui() + '.json',
       JSON.stringify({ exporteLe: new Date().toISOString(), residence: C.residence, avis: copie }, null, 2), 'application/json');
   }
