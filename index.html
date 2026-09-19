@@ -62,7 +62,13 @@
       const I = window.VoixIcons;
       document.getElementById('logo').innerHTML = I.icone('ecoute');
       document.querySelectorAll('[data-ic]').forEach(el => { el.innerHTML = I.icone(el.dataset.ic, el.dataset.classe); });
-      document.getElementById('periode').textContent = 'Période : ' + window.VOIX_CONFIG.periode.libelle;
+      const $p = document.getElementById('periode');
+      $p.textContent = 'Période : ' + window.VOIX_CONFIG.periode.libelle;
+      // Période ouverte dans le cockpit (lecture publique, sans bibliothèque Firebase).
+      fetch('https://firestore.googleapis.com/v1/projects/voix-habitants-gerland/databases/(default)/documents/reglages/periode')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { const lib = d && d.fields && d.fields.libelle && d.fields.libelle.stringValue; if (lib) $p.textContent = 'Période : ' + lib; })
+        .catch(() => {});
     })();
   </script>
 </body>

@@ -112,3 +112,45 @@ body.cockpit { font-size: 16px; }
 .ck-vide { color: var(--doux); text-align: center; padding: 26px 10px; }
 .ck-actions-bas { display: flex; flex-wrap: wrap; gap: 10px; }
 .ck-note { font-size: 13px; color: var(--doux); margin-top: 12px; }
+
+/* Compte rendu : formulaire */
+.ck-form { display: grid; gap: 14px; }
+.ck-champs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 700px) { .ck-champs { grid-template-columns: 1fr; } }
+.ck-form label { display: grid; gap: 6px; font-weight: 700; font-size: 14px; }
+.ck-form input:not([type="checkbox"]), .ck-form textarea {
+  font: inherit; font-weight: 500; font-size: 15px; padding: 10px 12px; border-radius: 12px;
+  border: 1.5px solid var(--ligne); background: #fff; color: var(--encre); resize: vertical;
+}
+.ck-form input:focus, .ck-form textarea:focus { outline: none; border-color: var(--vert); }
+.ck-demandes { border: 0; padding: 0; margin: 4px 0 0; display: grid; gap: 8px; }
+.ck-demandes legend { font-weight: 700; font-size: 14px; margin-bottom: 8px; padding: 0; }
+.ck-demandes legend span { font-weight: 500; color: var(--doux); }
+.ck-demande { border: 1px solid var(--ligne); border-radius: 14px; padding: 10px 12px; display: grid; gap: 8px; }
+.ck-demande.active { border-color: var(--vert); background: #f7fbf8; }
+.ck-form .ck-coche { display: flex; align-items: center; gap: 10px; font-weight: 500; cursor: pointer; }
+.ck-coche input { width: 18px; height: 18px; accent-color: var(--vert); flex: none; }
+.ck-succes { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 12px; background: var(--vert-pale); color: var(--vert-fonce); font-weight: 600; }
+.ck-succes .ic { width: 20px; height: 20px; }
+
+/* Comptes rendus créés */
+.ck-rapports { display: grid; gap: 10px; }
+.ck-rapport { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--ligne); border-radius: 14px; }
+.ck-rapport strong { display: block; }
+.ck-rapport span { color: var(--doux); font-size: 14px; }
+a.ck-btn { text-decoration: none; color: inherit; }
+a.ck-btn.principal { color: #fff; }
+
+/* Réponses du bailleur */
+.ck-badge { display: inline-block; margin-left: 8px; padding: 3px 9px; border-radius: 999px; background: var(--alerte); color: #fff; font-size: 12.5px; vertical-align: middle; }
+.ck-messages { display: grid; gap: 12px; }
+.ck-message-bailleur { padding: 14px 16px; border: 1px solid var(--ligne); border-radius: 14px; }
+.ck-message-bailleur.nouveau { border-color: var(--alerte); background: #fffaf8; }
+.ck-message-bailleur header { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.ck-message-bailleur header span { color: var(--doux); font-size: 13.5px; }
+.ck-message-bailleur p { margin: 8px 0; line-height: 1.55; }
+
+/* Période ouverte */
+.ck-periode { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; background: var(--vert-pale); border-color: #cfe3d7; }
+.ck-periode > div:first-child { flex: 1 1 320px; }
+.ck-periode-nom { font-size: 26px; font-weight: 800; color: var(--vert-fonce); margin: 2px 0 4px; letter-spacing: -.02em; text-transform: capitalize; }

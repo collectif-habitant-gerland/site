@@ -3,8 +3,8 @@
   const C = window.VOIX_CONFIG;
   const S = window.VoixStore;
   const { icone, visage } = window.VoixIcons;
-  const PERIODE = C.periode.id;
-  const CLE_BROUILLON = 'voix.brouillon.' + PERIODE;
+  let PERIODE = C.periode.id;                         // remplacée au démarrage par la période ouverte dans le cockpit
+  let CLE_BROUILLON = 'voix.brouillon.' + PERIODE;
   const DELAI_AVANCE = 400;
 
   // ---------- Étapes ----------
@@ -408,6 +408,14 @@
   // ---------- Démarrage ----------
   // Avis déjà envoyé depuis ce téléphone ? (demande au serveur, une seule fois)
   async function chargerEtat() {
+    try {
+      const p = await S.periodeOuverte();
+      if (p && p.id) C.periode = p;
+    } catch (e) { /* période de config.js par défaut */ }
+    PERIODE = C.periode.id;
+    CLE_BROUILLON = 'voix.brouillon.' + PERIODE;
+    const b = charger();
+    if (b && !aDesReponses()) rep = Object.assign(brouillonVide(), b);
     if (S.aUnCode()) {
       try { dejaEnvoye = await S.maReponse(PERIODE); } catch (e) { dejaEnvoye = null; }
       pret = true;
@@ -415,8 +423,6 @@
     if (courant === 0 && !envoye) afficher(0, '');
   }
 
-  const b = charger();
-  if (b) rep = Object.assign(brouillonVide(), b);
   history.replaceState({ etape: 0 }, '', location.pathname + location.search);
   afficher(0, '');
   chargerEtat();

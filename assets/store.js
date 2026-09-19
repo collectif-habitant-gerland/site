@@ -33,6 +33,12 @@
 
       maReponse: periode => avecDelai(monAvis(periode), 12000),
 
+      // Période ouverte aux avis, réglée depuis le cockpit.
+      async periodeOuverte() {
+        const doc = await avecDelai(db.collection('reglages').doc('periode').get(), 8000);
+        return doc.exists ? doc.data() : null;
+      },
+
       async envoyer(periode, reponses) {
         if (!navigator.onLine) throw new Error('hors-ligne');
         const u = await utilisateur();
@@ -66,6 +72,7 @@
   window.VoixStore = {
     mode: 'test',
     aUnCode: () => true,
+    async periodeOuverte() { return null; },
 
     async maReponse(periode) {
       const id = lireLocal(cleMienne(periode));

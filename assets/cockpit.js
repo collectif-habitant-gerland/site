@@ -15,29 +15,43 @@
   let tous = [];                 // tous les avis, toutes périodes
   let periode = C.periode.id;
   let filtreBat = 'tous';
-  let arret = null;              // arrêt de l'écoute en direct
+  let arrets = [];               // arrêts des écoutes en direct
+  let rapports = [];             // comptes rendus créés
+  let reponses = [];             // messages du bailleur
+  let brouillons = {};           // formulaire du compte rendu, par période
+  let renduEnAttente = false;    // mise à jour différée pendant la saisie
+  let ouverte = null;            // période ouverte aux avis (réglée ici)
+  let periodeChoisie = false;    // le pilote a choisi une période dans le menu
+  const SEUIL_BATIMENT = 5;      // en dessous, pas de détail par bâtiment (anonymat)
 
   // ---------- Connexion ----------
   auth.onAuthStateChanged(u => {
-    if (arret) { arret(); arret = null; }
+    arrets.forEach(f => f()); arrets = [];
     if (!u || u.isAnonymous) { $compte.innerHTML = ''; return ecranConnexion(); }
     $compte.innerHTML = '<span>' + esc(u.email || '') + '</span><button class="ck-btn" id="btn-sortir" type="button">' + icone('sortir') + 'Se déconnecter</button>';
     document.getElementById('btn-sortir').addEventListener('click', () => auth.signOut());
     if (u.email !== ADMIN) return ecranRefuse(u.email);
     $app.innerHTML = '<div class="ck-vide">Chargement des avis…</div>';
-    arret = db.collection('avis').onSnapshot(snap => {
-      tous = snap.docs.map(d => Object.assign({ id: d.id }, d.data({ serverTimestamps: 'estimate' })));
-      rendre();
-    }, err => {
+    const echec = err => {
       $app.innerHTML = '<div class="ck-connexion"><h1>Lecture impossible</h1><p>Firebase a refusé la lecture (' + esc(err.code || err.message) + ').</p></div>';
-    });
+    };
+    const donnees = d => Object.assign({ id: d.id }, d.data({ serverTimestamps: 'estimate' }));
+    arrets.push(db.collection('avis').onSnapshot(snap => { tous = snap.docs.map(donnees); rendre(); }, echec));
+    arrets.push(db.collection('rapports').onSnapshot(snap => { rapports = snap.docs.map(donnees); rendre(); }, echec));
+    arrets.push(db.collection('reponses').onSnapshot(snap => { reponses = snap.docs.map(donnees); rendre(); }, echec));
+    arrets.push(db.collection('reglages').doc('periode').onSnapshot(doc => {
+      ouverte = doc.exists ? doc.data() : { id: C.periode.id, libelle: C.periode.libelle };
+      if (!periodeChoisie) periode = ouverte.id;
+      rendre();
+    }, echec));
   });
 
   function ecranConnexion(message) {
     $app.innerHTML = '<div class="ck-connexion"><div class="intro-ic">' + icone('cadenas') + '</div>' +
       '<h1>Cockpit du pilote</h1><p>Connectez-vous avec le compte Google du collectif pour voir les avis des résidents.</p>' +
       '<button class="ck-btn principal ck-google" id="btn-google" type="button">Se connecter avec Google</button>' +
-      '<div class="ck-message" id="msg">' + esc(message || '') + '</div></div>';
+      '<div class="ck-message" id="msg">' + esc(message || '') + '</div>' +
+      '<p class="ck-note">Vous êtes résident ? Aucun compte n’est nécessaire : <a href="./">donner mon avis</a>.</p></div>';
     document.getElementById('btn-google').addEventListener('click', async () => {
       const fournisseur = new firebase.auth.GoogleAuthProvider();
       fournisseur.setCustomParameters({ prompt: 'select_account' });
@@ -79,7 +93,11 @@
 
   // ---------- Affichage ----------
   function rendre() {
-    const periodes = Array.from(new Set(tous.map(a => a.periode).concat(C.periode.id))).sort().reverse();
+    // Ne pas effacer une saisie en cours dans le formulaire du compte rendu.
+    const actif = document.activeElement;
+    if (actif && actif.closest && actif.closest('#form-cr')) { renduEnAttente = true; return; }
+    renduEnAttente = false;
+    const periodes = Array.from(new Set(tous.map(a => a.periode).concat(C.periode.id, ouverte ? ouverte.id : []))).sort().reverse();
     const avisP = tous.filter(a => a.periode === periode);
     const avisF = filtreBat === 'tous' ? avisP : avisP.filter(a => a.batiment === filtreBat);
 
@@ -90,6 +108,8 @@
       [['tous', 'Tous']].concat(C.batiments.map(b => [b.id, b.libelle])).map(([id, lib]) =>
         '<button class="ck-puce" type="button" data-bat="' + id + '" aria-pressed="' + (filtreBat === id) + '">' + esc(lib) + '</button>').join('') +
       '</div></div><div class="ck-grille">';
+
+    h += sectionPeriodeOuverte();
 
     // Participation
     const taux = C.logements ? Math.round(avisP.length / C.logements * 100) : null;
@@ -151,8 +171,9 @@
     h += '<section class="ck-carte"><h2>Sauvegarder sur mon ordinateur</h2><p class="ck-sous">Une copie des avis dans le dossier Téléchargements</p>' +
       '<div class="ck-actions-bas"><button class="ck-btn principal" type="button" id="btn-csv">' + icone('telecharger') + 'Tableau Excel (' + esc(libellePeriode(periode)) + ')</button>' +
       '<button class="ck-btn" type="button" id="btn-json">' + icone('telecharger') + 'Copie complète (toutes périodes)</button></div>' +
-      '<p class="ck-note">Le compte rendu pour le bailleur (PDF et version en ligne) arrivera ici au prochain lot.</p></section>';
+      '</section>';
 
+    h += sectionCompteRendu(avisP) + sectionRapports() + sectionReponses();
     h += '</div>';
     $app.innerHTML = h;
     brancher();
@@ -163,11 +184,225 @@
   }
 
   function brancher() {
-    document.getElementById('sel-periode').addEventListener('change', e => { periode = e.target.value; rendre(); });
+    document.getElementById('sel-periode').addEventListener('change', e => { periode = e.target.value; periodeChoisie = true; rendre(); });
     $app.querySelectorAll('[data-bat]').forEach(b => b.addEventListener('click', () => { filtreBat = b.dataset.bat; rendre(); }));
     $app.querySelectorAll('[data-suppr]').forEach(b => b.addEventListener('click', () => supprimer(b.dataset.suppr)));
     document.getElementById('btn-csv').addEventListener('click', exporterCsv);
     document.getElementById('btn-json').addEventListener('click', exporterJson);
+    brancherCompteRendu();
+    const bs = document.getElementById('btn-periode-suivante');
+    if (bs) bs.addEventListener('click', () => changerPeriode(decaler(ouverte.id, 1), 1));
+    const bp = document.getElementById('btn-periode-precedente');
+    if (bp) bp.addEventListener('click', () => changerPeriode(decaler(ouverte.id, -1), -1));
+  }
+
+  // ---------- Période ouverte aux résidents ----------
+  function decaler(id, n) {
+    const [a, m] = id.split('-').map(Number);
+    const d = new Date(a, m - 1 + n, 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  function sectionPeriodeOuverte() {
+    if (!ouverte) return '';
+    const suivante = decaler(ouverte.id, 1);
+    const precedente = decaler(ouverte.id, -1);
+    const nb = tous.filter(a => a.periode === ouverte.id).length;
+    return '<section class="ck-carte ck-periode"><div><h2>Période ouverte aux résidents</h2>' +
+      '<p class="ck-periode-nom">' + esc(libellePeriode(ouverte.id)) + '</p><p class="ck-sous" style="margin:0">' + nb + ' avis reçu' + (nb > 1 ? 's' : '') +
+      '. Les résidents répondent pour cette période ; chaque mois, ouvrez la suivante après avoir créé le compte rendu.</p></div>' +
+      '<div class="ck-actions-bas"><button class="ck-btn principal" type="button" id="btn-periode-suivante">' + icone('suivant') + 'Ouvrir ' + esc(libellePeriode(suivante)) + '</button>' +
+      '<button class="ck-btn" type="button" id="btn-periode-precedente">Revenir à ' + esc(libellePeriode(precedente)) + '</button></div></section>';
+  }
+
+  async function changerPeriode(id, sens) {
+    const ok = await confirmer(sens > 0
+      ? { titre: 'Ouvrir ' + libellePeriode(id) + ' ?', texte: 'Les résidents répondront désormais pour ' + libellePeriode(id) + ', et chacun pourra redonner son avis. Les réponses de ' + libellePeriode(ouverte.id) + ' sont conservées et restent consultables ici. Pensez à créer son compte rendu si ce n’est pas fait.', oui: 'Ouvrir', non: 'Annuler' }
+      : { titre: 'Revenir à ' + libellePeriode(id) + ' ?', texte: 'À utiliser seulement pour corriger une erreur : les résidents répondront de nouveau pour ' + libellePeriode(id) + '.', oui: 'Revenir', non: 'Annuler' });
+    if (!ok) return;
+    try {
+      await db.collection('reglages').doc('periode').set({ id, libelle: libellePeriode(id), ouverteLe: new Date().toISOString() });
+      periodeChoisie = false;
+    } catch (err) {
+      alert('Changement impossible (' + (err.code || err.message) + '). Vérifiez que les règles de sécurité ont bien été republiées.');
+    }
+  }
+
+  // ---------- Compte rendu pour le bailleur ----------
+  function brouillon(avisP) {
+    if (!brouillons[periode]) {
+      const classes = C.themes.map(t => Object.assign({ t }, statsTheme(avisP, t.id)))
+        .filter(x => x.n).sort((a, b) => a.satisfaits - b.satisfaits);
+      const retenus = classes.slice(0, 4).map(x => x.t.id);
+      brouillons[periode] = {
+        titre: 'Baromètre des résidents – ' + libellePeriode(periode),
+        destinataire: 'Erilia',
+        signature: C.signature,
+        intro: 'Les résidents des ' + C.adresses.replace(' · ', ' et ') + ' ont été invités à donner leur avis, de façon anonyme, sur la vie collective de la résidence. ' +
+          'Ce compte rendu présente leurs réponses : ce qui fonctionne, ce qui progresse et les points à traiter en priorité. Il se veut constructif et ouvert au dialogue.',
+        demandes: C.themes.reduce((o, t) => { o[t.id] = { on: retenus.indexOf(t.id) >= 0, texte: t.demande || '' }; return o; }, {})
+      };
+    }
+    return brouillons[periode];
+  }
+
+  function sectionCompteRendu(avisP) {
+    const b = brouillon(avisP);
+    const ordre = C.themes.map(t => Object.assign({ t }, statsTheme(avisP, t.id)))
+      .sort((a, b2) => (a.satisfaits === null) - (b2.satisfaits === null) || (a.satisfaits - b2.satisfaits));
+    return '<section class="ck-carte" id="compte-rendu"><h2>Préparer le compte rendu pour le bailleur</h2>' +
+      '<p class="ck-sous">' + esc(libellePeriode(periode)) + ' · ' + avisP.length + ' avis. Les chiffres seront figés au moment de la création : les avis arrivés ensuite n’y figureront pas.</p>' +
+      '<form id="form-cr" class="ck-form" novalidate>' +
+      '<div class="ck-champs"><label>Titre<input name="titre" maxlength="140" value="' + esc(b.titre) + '"></label>' +
+      '<label>À l’attention de<input name="destinataire" maxlength="80" value="' + esc(b.destinataire) + '"></label></div>' +
+      '<label>Signature<input name="signature" maxlength="120" value="' + esc(b.signature) + '"></label>' +
+      '<label>Message d’introduction<textarea name="intro" rows="4" maxlength="1500">' + esc(b.intro) + '</textarea></label>' +
+      '<fieldset class="ck-demandes"><legend>Demandes des résidents <span>(cochez celles à inclure, le texte est modifiable)</span></legend>' +
+      ordre.map(x => { const d = b.demandes[x.t.id];
+        return '<div class="ck-demande' + (d.on ? ' active' : '') + '"><label class="ck-coche"><input type="checkbox" data-dem-on="' + x.t.id + '"' + (d.on ? ' checked' : '') + '>' +
+          '<span><strong>' + esc(x.t.titre) + '</strong>' + (x.n ? ' · ' + x.satisfaits + ' % satisfaits' : ' · pas de réponse') + '</span></label>' +
+          '<textarea rows="2" maxlength="400" data-dem-texte="' + x.t.id + '"' + (d.on ? '' : ' hidden') + '>' + esc(d.texte) + '</textarea></div>'; }).join('') +
+      '</fieldset>' +
+      '<div class="ck-actions-bas"><button class="ck-btn principal" type="submit"' + (avisP.length ? '' : ' disabled') + '>' + icone('valider') + 'Créer le compte rendu</button></div>' +
+      (avisP.length ? '' : '<p class="ck-note">Aucun avis sur cette période : rien à transmettre pour l’instant.</p>') +
+      '<div id="cr-etat" role="status"></div></form></section>';
+  }
+
+  function sectionRapports() {
+    const liste = rapports.slice().sort((a, b) => String(b.creeLe).localeCompare(String(a.creeLe)));
+    return '<section class="ck-carte"><h2>Comptes rendus créés</h2><p class="ck-sous">Envoyez le PDF par mail : le lien et le QR code vers la version en ligne y figurent.</p>' +
+      (liste.length ? '<div class="ck-rapports">' + liste.map(r => {
+        const nb = reponses.filter(x => x.rapport === r.id).length;
+        return '<div class="ck-rapport"><div><strong>' + esc(r.titre) + '</strong><span>Créé le ' + esc(new Date(r.creeLe).toLocaleDateString('fr-FR')) + ' · ' + r.total + ' avis' +
+          (nb ? ' · ' + nb + ' réponse' + (nb > 1 ? 's' : '') + ' du bailleur' : '') + '</span></div>' +
+          '<div class="ck-actions-bas"><a class="ck-btn principal" href="' + lienRapport(r.id, true) + '" target="_blank" rel="noopener">' + icone('telecharger') + 'PDF</a>' +
+          '<a class="ck-btn" href="' + lienRapport(r.id) + '" target="_blank" rel="noopener">Ouvrir</a>' +
+          '<button class="ck-btn" type="button" data-copier="' + esc(r.id) + '">Copier le lien</button>' +
+          '<button class="ck-btn danger" type="button" data-retirer="' + esc(r.id) + '">Retirer</button></div></div>'; }).join('') + '</div>'
+        : '<div class="ck-vide">Aucun compte rendu pour l’instant</div>') + '</section>';
+  }
+
+  function sectionReponses() {
+    const liste = reponses.slice().sort((a, b) => (dateDe(b) || 0) - (dateDe(a) || 0));
+    const nouvelles = liste.filter(r => !r.lu).length;
+    return '<section class="ck-carte"><h2>Réponses du bailleur' + (nouvelles ? ' <span class="ck-badge">' + nouvelles + ' nouvelle' + (nouvelles > 1 ? 's' : '') + '</span>' : '') + '</h2>' +
+      '<p class="ck-sous">Messages envoyés depuis la page du compte rendu. Vous seul les lisez.</p>' +
+      (liste.length ? '<div class="ck-messages">' + liste.map(r => { const d = dateDe(r);
+        const rap = rapports.find(x => x.id === r.rapport);
+        return '<article class="ck-message-bailleur' + (r.lu ? '' : ' nouveau') + '"><header><strong>' + esc(r.nom || 'Sans nom') + '</strong>' +
+          '<span>' + (d ? d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '') +
+          (rap ? ' · ' + esc(rap.titre) : '') + '</span></header><p>' + esc(r.message).replace(/\n/g, '<br>') + '</p>' +
+          (r.contact ? '<p class="ck-note">Pour répondre : <a href="mailto:' + esc(r.contact) + '">' + esc(r.contact) + '</a></p>' : '') +
+          '<div class="ck-actions-bas">' + (r.lu ? '' : '<button class="ck-btn" type="button" data-lu="' + esc(r.id) + '">Marquer comme lu</button>') +
+          '<button class="ck-btn danger" type="button" data-suppr-rep="' + esc(r.id) + '">Supprimer</button></div></article>'; }).join('') + '</div>'
+        : '<div class="ck-vide">Aucune réponse pour l’instant</div>') + '</section>';
+  }
+
+  function lienRapport(id, imprimer) {
+    return new URL('rapport.html?id=' + encodeURIComponent(id) + (imprimer ? '&imprimer=1' : ''), location.href).href;
+  }
+
+  function brancherCompteRendu() {
+    const form = document.getElementById('form-cr');
+    const b = brouillons[periode];
+    ['titre', 'destinataire', 'signature', 'intro'].forEach(k => form[k].addEventListener('input', e => { b[k] = e.target.value; }));
+    form.querySelectorAll('[data-dem-on]').forEach(c => c.addEventListener('change', () => {
+      const id = c.dataset.demOn;
+      b.demandes[id].on = c.checked;
+      const zone = form.querySelector('[data-dem-texte="' + id + '"]');
+      zone.hidden = !c.checked;
+      c.closest('.ck-demande').classList.toggle('active', c.checked);
+    }));
+    form.querySelectorAll('[data-dem-texte]').forEach(t => t.addEventListener('input', () => { b.demandes[t.dataset.demTexte].texte = t.value; }));
+    form.addEventListener('focusout', () => setTimeout(() => {
+      if (renduEnAttente && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('#form-cr'))) rendre();
+    }, 0));
+    form.addEventListener('submit', e => { e.preventDefault(); creerCompteRendu(); });
+
+    $app.querySelectorAll('[data-copier]').forEach(x => x.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(lienRapport(x.dataset.copier)); x.textContent = 'Lien copié'; }
+      catch (err) { window.prompt('Copiez ce lien :', lienRapport(x.dataset.copier)); }
+    }));
+    $app.querySelectorAll('[data-retirer]').forEach(x => x.addEventListener('click', async () => {
+      const ok = await confirmer({ titre: 'Retirer ce compte rendu ?', texte: 'Le lien ne fonctionnera plus pour personne, y compris dans les PDF déjà envoyés. Les avis des résidents ne sont pas touchés.', oui: 'Retirer', non: 'Annuler' });
+      if (ok) db.collection('rapports').doc(x.dataset.retirer).delete().catch(err => alert('Impossible de retirer (' + (err.code || err.message) + ').'));
+    }));
+    $app.querySelectorAll('[data-lu]').forEach(x => x.addEventListener('click', () => {
+      db.collection('reponses').doc(x.dataset.lu).update({ lu: true }).catch(err => alert('Action impossible (' + (err.code || err.message) + ').'));
+    }));
+    $app.querySelectorAll('[data-suppr-rep]').forEach(x => x.addEventListener('click', async () => {
+      const ok = await confirmer({ titre: 'Supprimer ce message ?', texte: 'Le message du bailleur sera définitivement effacé.', oui: 'Supprimer', non: 'Annuler' });
+      if (ok) db.collection('reponses').doc(x.dataset.supprRep).delete().catch(err => alert('Suppression impossible (' + (err.code || err.message) + ').'));
+    }));
+  }
+
+  function jeton() {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    const v = crypto.getRandomValues(new Uint8Array(22));
+    return Array.from(v, x => alphabet[x % alphabet.length]).join('');
+  }
+
+  // Chiffres agrégés uniquement : aucun avis individuel ne quitte le cockpit.
+  function construireInstantane(b) {
+    const avisP = tous.filter(a => a.periode === periode);
+    const detailBatiments = C.batiments.filter(bt => avisP.filter(a => a.batiment === bt.id).length >= SEUIL_BATIMENT).map(bt => bt.id);
+    const themes = {};
+    C.themes.forEach(t => {
+      themes[t.id] = { tous: statsTheme(avisP, t.id).dist, bat: {} };
+      detailBatiments.forEach(id => { themes[t.id].bat[id] = statsTheme(avisP.filter(a => a.batiment === id), t.id).dist; });
+    });
+    const enObjet = paires => paires.reduce((o, [k, n]) => { o[k] = n; return o; }, {});
+    const dates = avisP.map(dateDe).filter(Boolean).sort((x, y) => x - y);
+
+    // Période précédente réelle (hors tests) avec assez d'avis pour comparer.
+    const anterieures = Array.from(new Set(tous.map(a => a.periode)))
+      .filter(p => p < periode && Number(p.slice(0, 4)) >= 2020).sort().reverse();
+    let precedent = null;
+    for (const p of anterieures) {
+      const l = tous.filter(a => a.periode === p);
+      if (l.length >= SEUIL_BATIMENT) {
+        precedent = { periode: p, libelle: libellePeriode(p), themes: {} };
+        C.themes.forEach(t => { const s = statsTheme(l, t.id); if (s.satisfaits !== null) precedent.themes[t.id] = s.satisfaits; });
+        break;
+      }
+    }
+
+    const parBatiment = {};
+    C.batiments.forEach(bt => { parBatiment[bt.id] = avisP.filter(a => a.batiment === bt.id).length; });
+
+    return {
+      version: 1,
+      periode, periodeLibelle: libellePeriode(periode),
+      titre: b.titre.trim() || 'Baromètre des résidents', destinataire: b.destinataire.trim(),
+      signature: b.signature.trim() || C.signature, adresses: C.adresses, intro: b.intro.trim(),
+      demandes: C.themes.filter(t => b.demandes[t.id].on && b.demandes[t.id].texte.trim()).map(t => ({ theme: t.id, texte: b.demandes[t.id].texte.trim() })),
+      creeLe: new Date().toISOString(),
+      du: dates.length ? dates[0].toISOString() : null, au: dates.length ? dates[dates.length - 1].toISOString() : null,
+      total: avisP.length, logements: C.logements || null, parBatiment,
+      batiments: C.batiments.map(bt => ({ id: bt.id, libelle: bt.libelle, rue: bt.rue })),
+      detailBatiments, seuilBatiment: SEUIL_BATIMENT,
+      themesDef: C.themes.map(t => ({ id: t.id, titre: t.titre, detail: t.detail, icone: t.icone })),
+      themes,
+      ameliorations: enObjet(compter(avisP, 'ameliorations')),
+      priorites: enObjet(compter(avisP, 'priorite')),
+      precedent
+    };
+  }
+
+  async function creerCompteRendu() {
+    const b = brouillons[periode];
+    const etat = document.getElementById('cr-etat');
+    const nb = tous.filter(a => a.periode === periode).length;
+    const ok = await confirmer({ titre: 'Créer le compte rendu ?', texte: 'Les chiffres de ' + libellePeriode(periode) + ' (' + nb + ' avis) seront figés à aujourd’hui. Vous obtiendrez un lien et un PDF à envoyer.', oui: 'Créer', non: 'Annuler' });
+    if (!ok) return;
+    const id = jeton();
+    try {
+      await db.collection('rapports').doc(id).set(construireInstantane(b));
+      const zone = document.getElementById('cr-etat');
+      if (zone) { zone.className = 'ck-succes'; zone.innerHTML = icone('valider') + '<span>Compte rendu créé. Il apparaît ci-dessous, dans « Comptes rendus créés » : ouvrez le PDF pour l’envoyer.</span>'; }
+    } catch (err) {
+      if (etat) { etat.className = 'ck-message'; etat.textContent = 'Création impossible (' + (err.code || err.message) + ').'; }
+    }
   }
 
   // ---------- Suppression ----------

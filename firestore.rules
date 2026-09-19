@@ -25,7 +25,14 @@ service cloud.firestore {
         && d.notes.keys().hasOnly(['information', 'ecoute', 'acces', 'garages', 'eau', 'chauffage', 'ascenseurs', 'proprete', 'nuisibles', 'etat', 'quartier'])
         && d.ameliorations is list && d.ameliorations.size() <= 12
         && (d.priorite == null || d.priorite is string)
-        && d.envoyeLe == request.time;
+        && d.envoyeLe == request.time
+        && periodeOuverte(d.periode);
+    }
+
+    // Les avis ne sont acceptés que pour la période ouverte dans le cockpit.
+    function periodeOuverte(p) {
+      return !exists(/databases/$(database)/documents/reglages/periode)
+        || get(/databases/$(database)/documents/reglages/periode).data.id == p;
     }
 
     // Un avis par téléphone et par période : identifiant = « période_identifiant-anonyme ».
@@ -58,6 +65,32 @@ service cloud.firestore {
       allow update: if estAdmin()
         || (nouvelAvis() && request.resource.data.keys().hasOnly(['total']) && request.resource.data.total == resource.data.total + 1);
       allow delete: if estAdmin();
+    }
+
+    // Comptes rendus figés (chiffres agrégés, jamais d'avis individuel).
+    // Lisibles par qui possède le lien (identifiant aléatoire), jamais listables.
+    match /rapports/{rapportId} {
+      allow get: if true;
+      allow list, write: if estAdmin();
+    }
+
+    // Réponses du bailleur, déposées depuis la page du compte rendu. Seul le pilote les lit.
+    match /reponses/{reponseId} {
+      allow create: if request.resource.data.keys().hasOnly(['rapport', 'nom', 'message', 'contact', 'envoyeLe'])
+        && request.resource.data.rapport is string
+        && exists(/databases/$(database)/documents/rapports/$(request.resource.data.rapport))
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 4000
+        && request.resource.data.nom is string && request.resource.data.nom.size() <= 120
+        && request.resource.data.contact is string && request.resource.data.contact.size() <= 160
+        && request.resource.data.envoyeLe == request.time;
+      allow read, update, delete: if estAdmin();
+    }
+
+    // Réglages publics (période ouverte), modifiables par le seul pilote.
+    match /reglages/{reglage} {
+      allow get: if true;
+      allow list, write: if estAdmin();
     }
 
     // Tout le reste est fermé.
