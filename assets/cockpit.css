@@ -154,3 +154,14 @@ a.ck-btn.principal { color: #fff; }
 .ck-periode { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; background: var(--vert-pale); border-color: #cfe3d7; }
 .ck-periode > div:first-child { flex: 1 1 320px; }
 .ck-periode-nom { font-size: 26px; font-weight: 800; color: var(--vert-fonce); margin: 2px 0 4px; letter-spacing: -.02em; text-transform: capitalize; }
+.ck-etat { display: inline-block; margin-left: 8px; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; vertical-align: middle; background: var(--vert); color: #fff; }
+.ck-periode.etat-pause { background: #fdf3e3; border-color: #f1d9b0; }
+.ck-periode.etat-pause .ck-etat { background: #c7802c; }
+.ck-periode.etat-pause .ck-periode-nom { color: #8a5a1c; }
+.ck-periode.etat-close { background: #f1efe9; border-color: var(--ligne); }
+.ck-periode.etat-close .ck-etat { background: var(--doux); }
+.ck-periode.etat-close .ck-periode-nom { color: var(--encre); }
+.ck-periode-nom { text-transform: none; }
+.ck-dialogue-champ { display: grid; gap: 6px; font-weight: 700; font-size: 14px; margin: -6px 0 18px; }
+.ck-dialogue-champ input { font: inherit; font-weight: 500; padding: 11px 12px; border-radius: 12px; border: 2px solid var(--ligne); }
+.ck-dialogue-champ input:focus { outline: none; border-color: var(--vert); }

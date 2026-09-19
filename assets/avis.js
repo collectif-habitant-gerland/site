@@ -22,6 +22,7 @@
   let envoiEnCours = false;
   let minuteur = null;
   let pret = false;          // état du serveur connu (avis déjà envoyé ou non)
+  let fermee = null;         // 'pause' ou 'close' quand le pilote a arrêté les réponses
   let dejaEnvoye = null;     // avis déjà envoyé depuis ce téléphone pour la période
 
   function brouillonVide() { return { batiment: null, notes: {}, ameliorations: [], priorite: null, derniere: 'intro' }; }
@@ -125,6 +126,14 @@
         '<p class="code-aide">Il se trouve dans le groupe WhatsApp des résidents et sur l’affiche du hall.</p>' +
         '<div id="code-erreur" class="code-erreur" role="alert"></div>' +
         '<button type="submit" class="btn btn-principal">' + icone('cadenas') + 'Valider le code</button></form>';
+    } else if (pret && fermee) {
+      const titre = fermee === 'pause' ? 'Les réponses sont en pause' : 'Cette consultation est terminée';
+      const texte = fermee === 'pause'
+        ? 'Le questionnaire est momentanément fermé. Il rouvrira bientôt : l’annonce sera faite dans le groupe des résidents.'
+        : 'Merci à tous ceux qui ont participé ! Les réponses sont en cours de transmission au bailleur. Une nouvelle consultation sera annoncée dans le groupe des résidents.';
+      return '<div class="question"><div class="intro-ic">' + icone(fermee === 'pause' ? 'horloge' : 'coeur') + '</div>' +
+        '<h2>' + titre + '</h2><p class="detail">' + texte + '</p>' +
+        '<div class="actions"><a class="btn btn-principal" href="index.html">Retour à l’accueil</a></div></div>';
     } else if (!pret) {
       actions = '<div class="actions"><button class="btn btn-principal" disabled>Chargement…</button></div>';
     } else if (deja && !brouillon) {
@@ -411,6 +420,7 @@
     try {
       const p = await S.periodeOuverte();
       if (p && p.id) C.periode = p;
+      fermee = p && (p.statut === 'pause' || p.statut === 'close') ? p.statut : null;
     } catch (e) { /* période de config.js par défaut */ }
     PERIODE = C.periode.id;
     CLE_BROUILLON = 'voix.brouillon.' + PERIODE;

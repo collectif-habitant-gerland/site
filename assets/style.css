@@ -76,6 +76,8 @@ a { color: var(--vert); }
   background: var(--vert-pale); color: var(--vert-fonce);
   border-radius: 999px; font-size: 14px; font-weight: 600;
 }
+.periode.fermee { background: #f1efe9; color: var(--doux); }
+.periode.fermee::before { background: var(--doux); box-shadow: none; }
 .periode::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--vert); box-shadow: 0 0 0 4px rgba(31, 107, 74, .15); }
 
 .tuiles { display: grid; gap: 12px; margin: 26px 0 8px; }

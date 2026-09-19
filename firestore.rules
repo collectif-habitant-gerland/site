@@ -19,7 +19,7 @@ service cloud.firestore {
       return d.keys().hasOnly(['uid', 'periode', 'residence', 'batiment', 'notes', 'ameliorations', 'priorite', 'envoyeLe'])
         && d.uid == request.auth.uid
         && d.residence == 'gerland'
-        && d.periode is string && d.periode.matches('^[0-9]{4}-[0-9]{2}$')
+        && d.periode is string && d.periode.matches('^[0-9]{4}-[0-9]{2}(-[0-9]{2})?(-[0-9]+)?$')
         && d.batiment in ['11', '44', '48', '50']
         && d.notes is map
         && d.notes.keys().hasOnly(['information', 'ecoute', 'acces', 'garages', 'eau', 'chauffage', 'ascenseurs', 'proprete', 'nuisibles', 'etat', 'quartier'])
@@ -29,16 +29,17 @@ service cloud.firestore {
         && periodeOuverte(d.periode);
     }
 
-    // Les avis ne sont acceptés que pour la période ouverte dans le cockpit.
+    // Les avis ne sont acceptés que pour la consultation en cours, et seulement si elle est ouverte.
     function periodeOuverte(p) {
       return !exists(/databases/$(database)/documents/reglages/periode)
-        || get(/databases/$(database)/documents/reglages/periode).data.id == p;
+        || (get(/databases/$(database)/documents/reglages/periode).data.id == p
+          && get(/databases/$(database)/documents/reglages/periode).data.get('statut', 'ouverte') == 'ouverte');
     }
 
     // Un avis par téléphone et par période : identifiant = « période_identifiant-anonyme ».
     match /avis/{avisId} {
       function estLeSien() {
-        return request.auth != null && avisId.matches('^[0-9]{4}-[0-9]{2}_' + request.auth.uid + '$');
+        return request.auth != null && avisId.matches('^[0-9]{4}-[0-9]{2}(-[0-9]{2})?(-[0-9]+)?_' + request.auth.uid + '$');
       }
       allow get: if estAdmin() || estLeSien();
       allow list: if estAdmin();
@@ -91,6 +92,11 @@ service cloud.firestore {
     match /reglages/{reglage} {
       allow get: if true;
       allow list, write: if estAdmin();
+    }
+
+    // Historique des consultations (nom, état, dates), réservé au pilote.
+    match /periodes/{periodeId} {
+      allow read, write: if estAdmin();
     }
 
     // Tout le reste est fermé.

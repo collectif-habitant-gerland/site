@@ -21,7 +21,8 @@
   let brouillons = {};           // formulaire du compte rendu, par période
   let renduEnAttente = false;    // mise à jour différée pendant la saisie
   let ouverte = null;            // période ouverte aux avis (réglée ici)
-  let periodeChoisie = false;    // le pilote a choisi une période dans le menu
+  let periodeChoisie = false;    // le pilote a choisi une consultation dans le menu
+  let infosPeriodes = {};        // nom et état de chaque consultation (collection « periodes »)
   const SEUIL_BATIMENT = 5;      // en dessous, pas de détail par bâtiment (anonymat)
 
   // ---------- Connexion ----------
@@ -39,8 +40,13 @@
     arrets.push(db.collection('avis').onSnapshot(snap => { tous = snap.docs.map(donnees); rendre(); }, echec));
     arrets.push(db.collection('rapports').onSnapshot(snap => { rapports = snap.docs.map(donnees); rendre(); }, echec));
     arrets.push(db.collection('reponses').onSnapshot(snap => { reponses = snap.docs.map(donnees); rendre(); }, echec));
+    arrets.push(db.collection('periodes').onSnapshot(snap => {
+      infosPeriodes = {};
+      snap.docs.forEach(d => { infosPeriodes[d.id] = d.data(); });
+      rendre();
+    }, echec));
     arrets.push(db.collection('reglages').doc('periode').onSnapshot(doc => {
-      ouverte = doc.exists ? doc.data() : { id: C.periode.id, libelle: C.periode.libelle };
+      ouverte = doc.exists ? doc.data() : { id: C.periode.id, libelle: C.periode.libelle, statut: 'ouverte' };
       if (!periodeChoisie) periode = ouverte.id;
       rendre();
     }, echec));
@@ -70,6 +76,10 @@
 
   // ---------- Calculs ----------
   function libellePeriode(id) {
+    if (infosPeriodes[id] && infosPeriodes[id].libelle) return infosPeriodes[id].libelle;
+    if (ouverte && ouverte.id === id && ouverte.libelle) return ouverte.libelle;
+    const j = /^(\d{4})-(\d{2})-(\d{2})/.exec(id);
+    if (j) return 'Consultation du ' + new Date(Number(j[1]), Number(j[2]) - 1, Number(j[3])).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
     const m = /^(\d{4})-(\d{2})$/.exec(id);
     if (!m) return id;
     const d = new Date(Number(m[1]), Number(m[2]) - 1, 1);
@@ -97,7 +107,7 @@
     const actif = document.activeElement;
     if (actif && actif.closest && actif.closest('#form-cr')) { renduEnAttente = true; return; }
     renduEnAttente = false;
-    const periodes = Array.from(new Set(tous.map(a => a.periode).concat(C.periode.id, ouverte ? ouverte.id : []))).sort().reverse();
+    const periodes = Array.from(new Set(tous.map(a => a.periode).concat(C.periode.id, ouverte ? ouverte.id : [], Object.keys(infosPeriodes)))).sort().reverse();
     const avisP = tous.filter(a => a.periode === periode);
     const avisF = filtreBat === 'tous' ? avisP : avisP.filter(a => a.batiment === filtreBat);
 
@@ -190,41 +200,75 @@
     document.getElementById('btn-csv').addEventListener('click', exporterCsv);
     document.getElementById('btn-json').addEventListener('click', exporterJson);
     brancherCompteRendu();
-    const bs = document.getElementById('btn-periode-suivante');
-    if (bs) bs.addEventListener('click', () => changerPeriode(decaler(ouverte.id, 1), 1));
-    const bp = document.getElementById('btn-periode-precedente');
-    if (bp) bp.addEventListener('click', () => changerPeriode(decaler(ouverte.id, -1), -1));
+    $app.querySelectorAll('[data-consult]').forEach(b => b.addEventListener('click', () => actionConsultation(b.dataset.consult)));
   }
 
-  // ---------- Période ouverte aux résidents ----------
-  function decaler(id, n) {
-    const [a, m] = id.split('-').map(Number);
-    const d = new Date(a, m - 1 + n, 1);
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-  }
+  // ---------- Consultation en cours (ouverte, en pause, clôturée) ----------
+  const ETATS = {
+    ouverte: { badge: 'Ouverte', texte: 'Les résidents peuvent répondre. Laissez-la ouverte aussi longtemps que vous voulez.' },
+    pause: { badge: 'En pause', texte: 'Les résidents ne peuvent pas répondre pour l’instant. Vous pouvez la rouvrir à tout moment.' },
+    close: { badge: 'Clôturée', texte: 'Les réponses sont arrêtées. Créez le compte rendu, puis lancez une nouvelle consultation quand vous le souhaitez.' }
+  };
 
   function sectionPeriodeOuverte() {
     if (!ouverte) return '';
-    const suivante = decaler(ouverte.id, 1);
-    const precedente = decaler(ouverte.id, -1);
+    const statut = ETATS[ouverte.statut] ? ouverte.statut : 'ouverte';
     const nb = tous.filter(a => a.periode === ouverte.id).length;
-    return '<section class="ck-carte ck-periode"><div><h2>Période ouverte aux résidents</h2>' +
+    const info = infosPeriodes[ouverte.id] || {};
+    const depuis = info.ouverteLe || ouverte.ouverteLe;
+    const bouton = (action, libelle, principal) => '<button class="ck-btn' + (principal ? ' principal' : '') + '" type="button" data-consult="' + action + '">' + libelle + '</button>';
+    const boutons = statut === 'ouverte'
+      ? bouton('pause', 'Mettre en pause') + bouton('close', 'Clôturer') + bouton('nouvelle', 'Nouvelle consultation')
+      : statut === 'pause'
+        ? bouton('ouverte', 'Rouvrir', true) + bouton('close', 'Clôturer') + bouton('nouvelle', 'Nouvelle consultation')
+        : bouton('nouvelle', 'Lancer une nouvelle consultation', true) + bouton('ouverte', 'Rouvrir celle-ci');
+    return '<section class="ck-carte ck-periode etat-' + statut + '"><div><h2>Consultation en cours <span class="ck-etat">' + ETATS[statut].badge + '</span></h2>' +
       '<p class="ck-periode-nom">' + esc(libellePeriode(ouverte.id)) + '</p><p class="ck-sous" style="margin:0">' + nb + ' avis reçu' + (nb > 1 ? 's' : '') +
-      '. Les résidents répondent pour cette période ; chaque mois, ouvrez la suivante après avoir créé le compte rendu.</p></div>' +
-      '<div class="ck-actions-bas"><button class="ck-btn principal" type="button" id="btn-periode-suivante">' + icone('suivant') + 'Ouvrir ' + esc(libellePeriode(suivante)) + '</button>' +
-      '<button class="ck-btn" type="button" id="btn-periode-precedente">Revenir à ' + esc(libellePeriode(precedente)) + '</button></div></section>';
+      (depuis ? ' · ouverte le ' + esc(new Date(depuis).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })) : '') +
+      '. ' + ETATS[statut].texte + '</p></div><div class="ck-actions-bas">' + boutons + '</div></section>';
   }
 
-  async function changerPeriode(id, sens) {
-    const ok = await confirmer(sens > 0
-      ? { titre: 'Ouvrir ' + libellePeriode(id) + ' ?', texte: 'Les résidents répondront désormais pour ' + libellePeriode(id) + ', et chacun pourra redonner son avis. Les réponses de ' + libellePeriode(ouverte.id) + ' sont conservées et restent consultables ici. Pensez à créer son compte rendu si ce n’est pas fait.', oui: 'Ouvrir', non: 'Annuler' }
-      : { titre: 'Revenir à ' + libellePeriode(id) + ' ?', texte: 'À utiliser seulement pour corriger une erreur : les résidents répondront de nouveau pour ' + libellePeriode(id) + '.', oui: 'Revenir', non: 'Annuler' });
-    if (!ok) return;
+  function aujourdhuiId() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  async function actionConsultation(action) {
+    const nom = libellePeriode(ouverte.id);
     try {
-      await db.collection('reglages').doc('periode').set({ id, libelle: libellePeriode(id), ouverteLe: new Date().toISOString() });
-      periodeChoisie = false;
+      if (action === 'nouvelle') {
+        const connus = new Set(tous.map(a => a.periode).concat(Object.keys(infosPeriodes), ouverte.id));
+        let id = aujourdhuiId(), n = 2;
+        while (connus.has(id)) id = aujourdhuiId() + '-' + n++;
+        const defaut = 'Consultation du ' + new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+        const libelle = await confirmer({
+          titre: 'Lancer une nouvelle consultation ?',
+          texte: '« ' + nom + ' » sera clôturée et ses réponses conservées. Les résidents pourront de nouveau donner leur avis, chacun une fois.',
+          champ: { label: 'Nom de la nouvelle consultation', valeur: defaut }, oui: 'Lancer', non: 'Annuler'
+        });
+        if (!libelle) return;
+        const maintenant = new Date().toISOString();
+        const lot = db.batch();
+        lot.set(db.collection('periodes').doc(ouverte.id), { libelle: nom, statut: 'close', clotureeLe: maintenant }, { merge: true });
+        lot.set(db.collection('periodes').doc(id), { libelle, statut: 'ouverte', ouverteLe: maintenant });
+        lot.set(db.collection('reglages').doc('periode'), { id, libelle, statut: 'ouverte', ouverteLe: maintenant });
+        await lot.commit();
+        periodeChoisie = false;
+        return;
+      }
+      const textes = {
+        pause: { titre: 'Mettre en pause ?', texte: 'Les résidents ne pourront plus répondre jusqu’à ce que vous rouvriez « ' + nom + ' ». Les réponses déjà reçues sont conservées.', oui: 'Mettre en pause' },
+        close: { titre: 'Clôturer la consultation ?', texte: 'Les réponses à « ' + nom + ' » seront arrêtées. Vous pourrez créer le compte rendu, et même la rouvrir plus tard si besoin.', oui: 'Clôturer' },
+        ouverte: { titre: 'Rouvrir la consultation ?', texte: 'Les résidents pourront de nouveau répondre à « ' + nom + ' ».', oui: 'Rouvrir' }
+      }[action];
+      if (!textes || !(await confirmer(Object.assign({ non: 'Annuler' }, textes)))) return;
+      const maintenant = new Date().toISOString();
+      const lot = db.batch();
+      lot.set(db.collection('reglages').doc('periode'), { id: ouverte.id, libelle: nom, statut: action, ouverteLe: ouverte.ouverteLe || maintenant }, { merge: true });
+      lot.set(db.collection('periodes').doc(ouverte.id), Object.assign({ libelle: nom, statut: action }, action === 'close' ? { clotureeLe: maintenant } : {}), { merge: true });
+      await lot.commit();
     } catch (err) {
-      alert('Changement impossible (' + (err.code || err.message) + '). Vérifiez que les règles de sécurité ont bien été republiées.');
+      alert('Action impossible (' + (err.code || err.message) + '). Vérifiez que les règles de sécurité ont bien été republiées.');
     }
   }
 
@@ -459,9 +503,14 @@
       voile.className = 'voile';
       voile.innerHTML = '<div class="dialogue" role="alertdialog" aria-modal="true" aria-labelledby="d-titre">' +
         '<h3 id="d-titre">' + esc(o.titre) + '</h3><p>' + esc(o.texte) + '</p>' +
+        (o.champ ? '<label class="ck-dialogue-champ">' + esc(o.champ.label) + '<input id="d-champ" maxlength="80" value="' + esc(o.champ.valeur) + '"></label>' : '') +
         '<div class="actions" style="margin-top:0"><button type="button" class="btn btn-principal" data-r="non">' + esc(o.non) + '</button>' +
-        '<button type="button" class="btn btn-secondaire" data-r="oui" style="color:var(--alerte)">' + esc(o.oui) + '</button></div></div>';
-      const fermer = r => { voile.remove(); document.removeEventListener('keydown', clavier); resolve(r); };
+        '<button type="button" class="btn btn-secondaire" data-r="oui"' + (o.champ ? '' : ' style="color:var(--alerte)"') + '>' + esc(o.oui) + '</button></div></div>';
+      const fermer = r => {
+        const champ = voile.querySelector('#d-champ');
+        const valeur = r && champ ? (champ.value.trim() || o.champ.valeur) : r;
+        voile.remove(); document.removeEventListener('keydown', clavier); resolve(valeur);
+      };
       const clavier = e => { if (e.key === 'Escape') fermer(false); };
       voile.addEventListener('click', e => {
         if (e.target === voile) fermer(false);
@@ -470,7 +519,9 @@
       });
       document.addEventListener('keydown', clavier);
       document.body.appendChild(voile);
-      voile.querySelector('[data-r="non"]').focus();
+      const champ = voile.querySelector('#d-champ');
+      if (champ) { champ.focus(); champ.select(); champ.addEventListener('keydown', e => { if (e.key === 'Enter') fermer(true); }); }
+      else voile.querySelector('[data-r="non"]').focus();
     });
   }
 

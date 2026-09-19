@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=5">
+  <link rel="stylesheet" href="assets/style.css?v=6">
 </head>
 <body>
   <div class="page">
@@ -55,19 +55,26 @@
     </footer>
   </div>
 
-  <script src="assets/config.js?v=5"></script>
-  <script src="assets/icons.js?v=5"></script>
+  <script src="assets/config.js?v=6"></script>
+  <script src="assets/icons.js?v=6"></script>
   <script>
     (function () {
       const I = window.VoixIcons;
       document.getElementById('logo').innerHTML = I.icone('ecoute');
       document.querySelectorAll('[data-ic]').forEach(el => { el.innerHTML = I.icone(el.dataset.ic, el.dataset.classe); });
       const $p = document.getElementById('periode');
-      $p.textContent = 'Période : ' + window.VOIX_CONFIG.periode.libelle;
+      $p.textContent = 'Consultation ouverte';
       // Période ouverte dans le cockpit (lecture publique, sans bibliothèque Firebase).
       fetch('https://firestore.googleapis.com/v1/projects/voix-habitants-gerland/databases/(default)/documents/reglages/periode')
         .then(r => r.ok ? r.json() : null)
-        .then(d => { const lib = d && d.fields && d.fields.libelle && d.fields.libelle.stringValue; if (lib) $p.textContent = 'Période : ' + lib; })
+        .then(d => {
+          const f = (d && d.fields) || {};
+          const lib = f.libelle && f.libelle.stringValue;
+          const statut = f.statut && f.statut.stringValue;
+          if (statut === 'pause') { $p.textContent = 'Réponses en pause pour le moment'; $p.classList.add('fermee'); }
+          else if (statut === 'close') { $p.textContent = 'Consultation terminée · merci à tous'; $p.classList.add('fermee'); }
+          else if (lib) $p.textContent = lib + ' · ouverte';
+        })
         .catch(() => {});
     })();
   </script>
