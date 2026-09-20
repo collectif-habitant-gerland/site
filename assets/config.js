@@ -34,7 +34,9 @@ window.VOIX_CONFIG = {
       { id: 'information-3', libelle: 'Intervention non annoncée' },
       { id: 'information-4', libelle: 'Absence de la responsable non signalée' },
       { id: 'information-5', libelle: 'Numéros d’urgence non affichés' },
-      { id: 'information-6', libelle: 'Planning de ménage non affiché' }
+      { id: 'information-6', libelle: 'Planning de ménage non affiché' },
+      { id: 'information-7', libelle: 'Aucun rappel des règles de voisinage (bruit, horaires)' },
+      { id: 'information-8', libelle: 'Aucune information sur les travaux en cours' }
     ],
     ecoute: [
       { id: 'ecoute-1', libelle: 'Impossible de joindre quelqu’un' },
@@ -90,7 +92,9 @@ window.VOIX_CONFIG = {
     proprete: [
       { id: 'proprete-1', libelle: 'Local poubelle débordant' },
       { id: 'proprete-2', libelle: 'Encombrants déposés' },
-      { id: 'proprete-3', libelle: 'Hall ou escaliers non nettoyés' },
+      { id: 'proprete-3', libelle: 'Escaliers non nettoyés' },
+      { id: 'proprete-7', libelle: 'Hall d’entrée non nettoyé' },
+      { id: 'proprete-8', libelle: 'Murs et carrelage du hall sales' },
       { id: 'proprete-4', libelle: 'Déjections ou urine' },
       { id: 'proprete-5', libelle: 'Déchets jetés des fenêtres' },
       { id: 'proprete-6', libelle: 'Tags' }
@@ -122,8 +126,8 @@ window.VOIX_CONFIG = {
   // Uniquement du collectif : aucune question sur les charges, le loyer ou une situation personnelle.
   themes: [
     { id: 'information', icone: 'information', titre: 'Information et affichage',
-      detail: 'Affiches lors d’une panne, d’une coupure, d’une intervention, d’une absence de la responsable de résidence.',
-      demande: 'Afficher dans chaque hall, au fil de l’eau, les pannes, coupures et interventions prévues, et indiquer qui contacter en l’absence de la responsable de résidence.' },
+      detail: 'Affiches lors d’une panne, d’une coupure, d’une intervention, d’une absence de la responsable de résidence, rappels des règles de voisinage.',
+      demande: 'Afficher dans chaque hall, au fil de l’eau, les pannes, coupures et interventions prévues, indiquer qui contacter en l’absence de la responsable de résidence, et rappeler régulièrement les règles de voisinage (bruit, horaires de travaux).' },
     { id: 'ecoute', icone: 'ecoute', titre: 'Écoute et réactivité du bailleur',
       detail: 'Joindre quelqu’un, obtenir une intervention, avoir un suivi.',
       demande: 'Garantir un interlocuteur joignable, un accusé de réception de chaque demande et un délai de réponse annoncé.' },
@@ -143,8 +147,8 @@ window.VOIX_CONFIG = {
       detail: 'Pannes, portes qui bloquent, propreté.',
       demande: 'Réduire la durée des pannes et afficher la date prévue de remise en service.' },
     { id: 'proprete', icone: 'proprete', titre: 'Propreté et déchets',
-      detail: 'Local poubelle, encombrants, ménage des halls et escaliers.',
-      demande: 'Assurer un entretien régulier des halls et escaliers, et organiser l’enlèvement des encombrants.' },
+      detail: 'Local poubelle, encombrants, ménage des escaliers, du hall et de ses murs.',
+      demande: 'Assurer un entretien régulier des escaliers, du hall et de ses murs, et organiser l’enlèvement des encombrants.' },
     { id: 'nuisibles', icone: 'nuisibles', titre: 'Nuisibles',
       detail: 'Rats, souris, cafards, punaises de lit.',
       demande: 'Programmer des traitements réguliers et annoncés contre les rats et les insectes.' },
