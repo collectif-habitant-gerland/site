@@ -103,6 +103,28 @@
       '<div><h3>Améliorations constatées par les résidents</h3>' + (ameli.length ? barres(ameli.map(([k, n]) => [theme(k).titre, n]))
         : '<p class="rp-discret">Aucune amélioration signalée sur la période.</p>') + '</div></div></section>';
 
+    // Avancées obtenues
+    if (R.avancees && R.avancees.length) {
+      h += '<section class="rp-bloc"><h2>Ce qui a changé</h2><p class="rp-sous">Les avancées constatées par les résidents depuis le dernier compte rendu.</p>' +
+        '<ol class="rp-avancees">' + R.avancees.map(a => '<li><div class="rp-avancee-ic">' + icone('valider') + '</div>' +
+          '<div><span class="rp-avancee-date">' + esc(dateFr(a.date)) + (a.theme ? ' · ' + esc(theme(a.theme).titre) : '') + '</span>' +
+          '<strong>' + esc(a.titre) + '</strong>' + (a.texte ? '<p>' + esc(a.texte) + '</p>' : '') + '</div></li>').join('') +
+        '</ol></section>';
+    }
+
+    // Problèmes signalés en cours
+    if (R.signalements && R.signalements.length) {
+      const jours = R.signalements.filter(x => typeof x.jours === 'number').map(x => x.jours);
+      const plusLong = jours.length ? Math.max.apply(null, jours) : null;
+      h += '<section class="rp-bloc"><h2>Problèmes signalés, non résolus</h2>' +
+        '<p class="rp-sous">Signalés par les résidents eux-mêmes, du plus partagé au moins partagé' +
+        (plusLong !== null ? '. Le plus ancien attend depuis ' + plusLong + ' jour' + (plusLong > 1 ? 's' : '') : '') + '.</p>' +
+        '<div class="rp-table-zone"><table class="rp-table"><thead><tr><th>Problème</th><th>Thème</th><th>Voisins</th><th>Depuis</th></tr></thead><tbody>' +
+        R.signalements.map(x => '<tr><td><strong>' + esc(x.probleme) + '</strong></td><td>' + esc(theme(x.theme).titre) + '</td>' +
+          '<td>' + x.total + '</td><td>' + (typeof x.jours === 'number' ? (x.jours === 0 ? 'aujourd’hui' : x.jours + ' j') : '—') + '</td></tr>').join('') +
+        '</tbody></table></div></section>';
+    }
+
     // Satisfaction par thème (interactif)
     const bats = (R.batiments || []).filter(b => R.detailBatiments && R.detailBatiments.indexOf(b.id) >= 0);
     h += '<section class="rp-bloc"><h2>Satisfaction par thème</h2><p class="rp-sous">Du thème le plus préoccupant au plus satisfaisant. Touchez un thème pour le détail.</p>' +

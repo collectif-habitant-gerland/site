@@ -21,6 +21,8 @@
   let renduEnAttente = false;    // mise à jour différée pendant la saisie
   let ouverte = null;            // période ouverte aux avis (réglée ici)
   let periodeChoisie = false;    // le pilote a choisi une consultation dans le menu
+  let signalements = [];         // problèmes signalés par les voisins
+  let avancees = [];             // « Ce qui a changé »
   let infosPeriodes = {};        // nom et état de chaque consultation (collection « periodes »)
   const SEUIL_PRECEDENT = 5;     // avis minimum pour comparer avec la consultation précédente
 
@@ -39,6 +41,8 @@
     arrets.push(db.collection('avis').onSnapshot(snap => { tous = snap.docs.map(donnees); rendre(); }, echec));
     arrets.push(db.collection('rapports').onSnapshot(snap => { rapports = snap.docs.map(donnees); rendre(); }, echec));
     arrets.push(db.collection('reponses').onSnapshot(snap => { reponses = snap.docs.map(donnees); rendre(); }, echec));
+    arrets.push(db.collection('signalements').onSnapshot(snap => { signalements = snap.docs.map(donnees); rendre(); }, echec));
+    arrets.push(db.collection('avancees').onSnapshot(snap => { avancees = snap.docs.map(donnees); rendre(); }, echec));
     arrets.push(db.collection('periodes').onSnapshot(snap => {
       infosPeriodes = {};
       snap.docs.forEach(d => { infosPeriodes[d.id] = d.data(); });
@@ -104,7 +108,7 @@
   function rendre() {
     // Ne pas effacer une saisie en cours dans le formulaire du compte rendu.
     const actif = document.activeElement;
-    if (actif && actif.closest && actif.closest('#form-cr')) { renduEnAttente = true; return; }
+    if (actif && actif.closest && (actif.closest('#form-cr') || actif.closest('#form-avancee'))) { renduEnAttente = true; return; }
     renduEnAttente = false;
     const periodes = Array.from(new Set(tous.map(a => a.periode).concat(C.periode.id, ouverte ? ouverte.id : [], Object.keys(infosPeriodes)))).sort().reverse();
     const avisP = tous.filter(a => a.periode === periode);
@@ -173,6 +177,7 @@
       '<button class="ck-btn" type="button" id="btn-json">' + icone('telecharger') + 'Copie complète (toutes périodes)</button></div>' +
       '</section>';
 
+    h += sectionSignalements() + sectionAvancees();
     h += sectionCompteRendu(avisP) + sectionRapports() + sectionReponses();
     h += '</div>';
     $app.innerHTML = h;
@@ -189,6 +194,8 @@
     document.getElementById('btn-csv').addEventListener('click', exporterCsv);
     document.getElementById('btn-json').addEventListener('click', exporterJson);
     brancherCompteRendu();
+    brancherSignalements();
+    brancherAvancees();
     $app.querySelectorAll('[data-consult]').forEach(b => b.addEventListener('click', () => actionConsultation(b.dataset.consult)));
   }
 
@@ -259,6 +266,104 @@
     } catch (err) {
       alert('Action impossible (' + (err.code || err.message) + '). Vérifiez que les règles de sécurité ont bien été republiées.');
     }
+  }
+
+  // ---------- Signalements ----------
+  const joursDepuis = d => d ? Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000)) : null;
+  const dateSignalement = s => (s && s.premierLe && s.premierLe.toDate) ? s.premierLe.toDate() : null;
+
+  function signalementsOuverts() {
+    return signalements.filter(s => s.statut !== 'regle')
+      .sort((a, b) => (b.total || 0) - (a.total || 0) || (dateSignalement(a) || 0) - (dateSignalement(b) || 0));
+  }
+
+  function sectionSignalements() {
+    const ouvertsListe = signalementsOuverts();
+    const regles = signalements.filter(s => s.statut === 'regle');
+    const ligne = s => {
+      const j = joursDepuis(dateSignalement(s));
+      return '<tr><td><strong>' + esc(s.probleme || s.id) + '</strong><br><span class="ck-discret">' + esc(titreTheme(s.theme)) + '</span></td>' +
+        '<td>' + (s.total || 0) + '</td>' +
+        '<td>' + (j === null ? '—' : j === 0 ? 'aujourd’hui' : j + ' jour' + (j > 1 ? 's' : '')) + '</td>' +
+        '<td>' + (s.repares ? s.repares + ' ✓' : '—') + '</td>' +
+        '<td style="text-align:right">' +
+        (s.statut === 'regle'
+          ? '<button class="ck-btn" type="button" data-signal-rouvrir="' + esc(s.id) + '">Rouvrir</button>'
+          : '<button class="ck-btn" type="button" data-signal-regle="' + esc(s.id) + '">Marquer réglé</button>') +
+        '<button class="ck-btn danger" type="button" data-signal-suppr="' + esc(s.id) + '">Supprimer</button></td></tr>';
+    };
+    const tableau = liste => '<div class="ck-table-zone"><table class="ck-table"><thead><tr><th>Problème</th><th>Voisins</th><th>Depuis</th><th>« réglé »</th><th></th></tr></thead><tbody>' +
+      liste.map(ligne).join('') + '</tbody></table></div>';
+    return '<section class="ck-carte"><h2>Problèmes signalés' + (ouvertsListe.length ? ' <span class="ck-badge">' + ouvertsListe.length + ' en cours</span>' : '') + '</h2>' +
+      '<p class="ck-sous">Signalés par les voisins depuis la page « Signaler un problème ». La colonne « réglé » compte les voisins qui disent que c’est résolu.</p>' +
+      (ouvertsListe.length ? tableau(ouvertsListe) : '<div class="ck-vide">Aucun problème signalé pour l’instant</div>') +
+      (regles.length ? '<h3 class="ck-sous-titre">Réglés (' + regles.length + ')</h3>' + tableau(regles) : '') + '</section>';
+  }
+
+  function brancherSignalements() {
+    const maj = async (id, statut) => {
+      try { await db.collection('signalements').doc(id).update({ statut, dernierLe: firebase.firestore.FieldValue.serverTimestamp() }); }
+      catch (e) { alert('Action impossible (' + (e.code || e.message) + ').'); }
+    };
+    $app.querySelectorAll('[data-signal-regle]').forEach(b => b.addEventListener('click', async () => {
+      const s = signalements.find(x => x.id === b.dataset.signalRegle) || {};
+      if (await confirmer({ titre: 'Marquer comme réglé ?', texte: '« ' + (s.probleme || '') + ' » n’apparaîtra plus comme un problème en cours pour les voisins.', oui: 'Marquer réglé', non: 'Annuler' })) maj(b.dataset.signalRegle, 'regle');
+    }));
+    $app.querySelectorAll('[data-signal-rouvrir]').forEach(b => b.addEventListener('click', () => maj(b.dataset.signalRouvrir, 'ouvert')));
+    $app.querySelectorAll('[data-signal-suppr]').forEach(b => b.addEventListener('click', async () => {
+      const s = signalements.find(x => x.id === b.dataset.signalSuppr) || {};
+      if (!(await confirmer({ titre: 'Supprimer ce signalement ?', texte: '« ' + (s.probleme || '') + ' » et son compteur seront effacés. Les voisins pourront le signaler de nouveau.', oui: 'Supprimer', non: 'Annuler' }))) return;
+      try { await db.collection('signalements').doc(b.dataset.signalSuppr).delete(); }
+      catch (e) { alert('Suppression impossible (' + (e.code || e.message) + ').'); }
+    }));
+  }
+
+  // ---------- Ce qui a changé ----------
+  function sectionAvancees() {
+    const liste = avancees.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    return '<section class="ck-carte"><h2>Ce qui a changé</h2>' +
+      '<p class="ck-sous">Les avancées obtenues, visibles par les voisins et reprises dans le compte rendu.</p>' +
+      '<form id="form-avancee" class="ck-form"><div class="ck-champs">' +
+      '<label>Date<input type="date" name="date" value="' + aujourdhui + '"></label>' +
+      '<label>Thème<select name="theme" class="ck-select" style="width:100%">' +
+      '<option value="">Aucun</option>' + C.themes.map(t => '<option value="' + t.id + '">' + esc(t.titre) + '</option>').join('') +
+      '</select></label></div>' +
+      '<label>Ce qui a été obtenu<input name="titre" maxlength="120" placeholder="Nouveau prestataire de ménage" required></label>' +
+      '<label>Précisions (facultatif)<textarea name="texte" rows="2" maxlength="600" placeholder="Hall et ascenseur nettoyés tous les jours, étages une fois par semaine."></textarea></label>' +
+      '<div class="ck-actions-bas"><button class="ck-btn principal" type="submit">' + icone('valider') + 'Ajouter l’avancée</button></div></form>' +
+      (liste.length ? '<div class="ck-rapports" style="margin-top:18px">' + liste.map(a =>
+        '<div class="ck-rapport"><div><strong>' + esc(a.titre) + '</strong><span>' + esc(a.date || '') + (a.theme ? ' · ' + esc(titreTheme(a.theme)) : '') + (a.texte ? ' · ' + esc(a.texte) : '') + '</span></div>' +
+        '<div class="ck-actions-bas"><button class="ck-btn danger" type="button" data-avancee-suppr="' + esc(a.id) + '">Retirer</button></div></div>').join('') + '</div>'
+        : '<p class="ck-note">Aucune avancée pour l’instant. Les voisins voient un message qui les encourage à participer.</p>') +
+      '</section>';
+  }
+
+  function brancherAvancees() {
+    const form = document.getElementById('form-avancee');
+    if (form) form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const titre = form.titre.value.trim();
+      if (!titre) { form.titre.focus(); return; }
+      const bouton = form.querySelector('button[type="submit"]');
+      bouton.disabled = true;
+      try {
+        await db.collection('avancees').add({
+          titre, texte: form.texte.value.trim(), date: form.date.value || new Date().toISOString().slice(0, 10),
+          theme: form.theme.value || null, creeLe: new Date().toISOString()
+        });
+        form.reset();
+      } catch (err) {
+        alert('Ajout impossible (' + (err.code || err.message) + ').');
+      }
+      bouton.disabled = false;
+    });
+    $app.querySelectorAll('[data-avancee-suppr]').forEach(b => b.addEventListener('click', async () => {
+      const a = avancees.find(x => x.id === b.dataset.avanceeSuppr) || {};
+      if (!(await confirmer({ titre: 'Retirer cette avancée ?', texte: '« ' + (a.titre || '') + ' » ne sera plus visible par les voisins.', oui: 'Retirer', non: 'Annuler' }))) return;
+      try { await db.collection('avancees').doc(b.dataset.avanceeSuppr).delete(); }
+      catch (e) { alert('Suppression impossible (' + (e.code || e.message) + ').'); }
+    }));
   }
 
   // ---------- Compte rendu pour le bailleur ----------
@@ -348,7 +453,8 @@
     }));
     form.querySelectorAll('[data-dem-texte]').forEach(t => t.addEventListener('input', () => { b.demandes[t.dataset.demTexte].texte = t.value; }));
     form.addEventListener('focusout', () => setTimeout(() => {
-      if (renduEnAttente && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('#form-cr'))) rendre();
+      const a = document.activeElement;
+      if (renduEnAttente && !(a && a.closest && (a.closest('#form-cr') || a.closest('#form-avancee')))) rendre();
     }, 0));
     form.addEventListener('submit', e => { e.preventDefault(); creerCompteRendu(); });
 
@@ -410,6 +516,12 @@
       total: avisP.length, logements: C.logements || null,
       themesDef: C.themes.map(t => ({ id: t.id, titre: t.titre, detail: t.detail, icone: t.icone })),
       themes,
+      signalements: signalementsOuverts().slice(0, 12).map(x => ({
+        theme: x.theme, probleme: x.probleme, total: x.total || 0, repares: x.repares || 0,
+        jours: joursDepuis(dateSignalement(x))
+      })),
+      avancees: avancees.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 8)
+        .map(a => ({ date: a.date || '', titre: a.titre || '', texte: a.texte || '', theme: a.theme || null })),
       ameliorations: enObjet(compter(avisP, 'ameliorations')),
       priorites: enObjet(compter(avisP, 'priorite')),
       precedent

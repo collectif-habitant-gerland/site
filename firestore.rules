@@ -98,6 +98,56 @@ service cloud.firestore {
       allow read, write: if estAdmin();
     }
 
+    // Signalements : un compteur par problème, visible de tous.
+    // Un habitant ne peut compter qu'une fois par problème (sous-collections « votants » et « repares »).
+    match /signalements/{probleme} {
+      function aVote(sous) {
+        return request.auth != null
+          && existsAfter(/databases/$(database)/documents/signalements/$(probleme)/$(sous)/$(request.auth.uid))
+          && !exists(/databases/$(database)/documents/signalements/$(probleme)/$(sous)/$(request.auth.uid));
+      }
+      function champs(d) {
+        return d.keys().hasOnly(['theme', 'probleme', 'total', 'repares', 'statut', 'premierLe', 'dernierLe'])
+          && d.theme is string && d.theme.size() <= 30
+          && d.probleme is string && d.probleme.size() <= 140
+          && d.total is int && d.total > 0 && d.repares is int && d.repares >= 0
+          && d.statut in ['ouvert', 'regle'];
+      }
+      allow get, list: if true;
+      allow create: if aVote('votants') && champs(request.resource.data)
+        && request.resource.data.total == 1 && request.resource.data.repares == 0
+        && request.resource.data.statut == 'ouvert'
+        && request.resource.data.premierLe == request.time
+        && request.resource.data.dernierLe == request.time;
+      allow update: if estAdmin() || (champs(request.resource.data)
+        && request.resource.data.theme == resource.data.theme
+        && request.resource.data.probleme == resource.data.probleme
+        && request.resource.data.premierLe == resource.data.premierLe
+        && request.resource.data.dernierLe == request.time
+        && request.resource.data.statut == resource.data.statut
+        && ((aVote('votants')
+            && request.resource.data.total == resource.data.total + 1
+            && request.resource.data.repares == resource.data.repares)
+          || (aVote('repares')
+            && request.resource.data.repares == resource.data.repares + 1
+            && request.resource.data.total == resource.data.total)));
+      allow delete: if estAdmin();
+
+      match /{sous}/{uid} {
+        allow create: if request.auth != null && uid == request.auth.uid
+          && (sous == 'votants' || sous == 'repares')
+          && request.resource.data.keys().hasOnly(['le']) && request.resource.data.le == request.time;
+        allow get: if estAdmin() || (request.auth != null && uid == request.auth.uid);
+        allow list, update, delete: if estAdmin();
+      }
+    }
+
+    // Avancées obtenues (« Ce qui a changé »), écrites par le pilote, lues par tous.
+    match /avancees/{avanceeId} {
+      allow get, list: if true;
+      allow write: if estAdmin();
+    }
+
     // Tout le reste est fermé.
     match /{document=**} {
       allow read, write: if false;

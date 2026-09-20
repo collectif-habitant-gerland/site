@@ -3,24 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="robots" content="noindex, nofollow">
+  <meta name="robots" content="noindex">
   <meta name="theme-color" content="#f6f3ec">
-  <title>Cockpit – La voix des habitants</title>
+  <title>Signaler un problème – La voix des habitants</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/style.css?v=9">
-  <link rel="stylesheet" href="assets/cockpit.css?v=9">
 </head>
-<body class="cockpit">
-  <header class="ck-entete">
-    <div class="marque">
-      <div class="marque-logo" id="logo"></div>
-      <div>La voix des habitants<small>Cockpit · Gerland</small></div>
+<body>
+  <div class="page">
+    <div class="barre">
+      <button class="btn-rond" id="btn-retour" type="button" aria-label="Revenir à l’écran précédent"></button>
+      <div class="progression" id="progression" aria-live="polite"><div class="progression-texte" id="progression-texte"></div></div>
+      <button class="btn-rond" id="btn-fermer" type="button" aria-label="Fermer et revenir à l’accueil"></button>
     </div>
-    <div class="ck-compte" id="compte"></div>
-  </header>
-  <main id="app" class="ck-page"><div class="ck-vide">Chargement…</div></main>
+    <main id="ecran" class="ecran" tabindex="-1"><div class="chargement">Chargement…</div></main>
+  </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -28,6 +27,6 @@
   <script src="assets/firebase-config.js?v=9"></script>
   <script src="assets/config.js?v=9"></script>
   <script src="assets/icons.js?v=9"></script>
-  <script src="assets/cockpit.js?v=9"></script>
+  <script src="assets/signaler.js?v=9"></script>
 </body>
 </html>

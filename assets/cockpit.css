@@ -165,3 +165,7 @@ a.ck-btn.principal { color: #fff; }
 .ck-dialogue-champ { display: grid; gap: 6px; font-weight: 700; font-size: 14px; margin: -6px 0 18px; }
 .ck-dialogue-champ input { font: inherit; font-weight: 500; padding: 11px 12px; border-radius: 12px; border: 2px solid var(--ligne); }
 .ck-dialogue-champ input:focus { outline: none; border-color: var(--vert); }
+.ck-discret { color: var(--doux); font-size: 13px; }
+.ck-sous-titre { font-size: 14px; color: var(--doux); margin: 22px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+.ck-form select.ck-select { min-height: 44px; }
+.ck-form input[type="date"] { font: inherit; }
