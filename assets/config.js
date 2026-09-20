@@ -50,13 +50,16 @@ window.VOIX_CONFIG = {
       { id: 'acces-4', libelle: 'Interphone en panne' },
       { id: 'acces-5', libelle: 'Boîte aux lettres forcée ou ouverte' },
       { id: 'acces-6', libelle: 'Local poubelle ou technique ouvert' },
-      { id: 'acces-7', libelle: 'Personne inconnue dans les parties communes' }
+      { id: 'acces-7', libelle: 'Personne inconnue dans les parties communes' },
+      { id: 'acces-8', libelle: 'Personnes qui dorment dans le hall ou l’escalier' }
     ],
     garages: [
       { id: 'garages-1', libelle: 'Portail en panne ou bloqué' },
       { id: 'garages-2', libelle: 'Porte de garage restée ouverte' },
       { id: 'garages-3', libelle: 'Serrure cassée' },
-      { id: 'garages-4', libelle: 'Squat ou personnes installées' },
+      { id: 'garages-4', libelle: 'Personnes qui dorment ou s’installent' },
+      { id: 'garages-9', libelle: 'Attroupements, allées et venues suspectes' },
+      { id: 'garages-10', libelle: 'Traces de squat (matelas, affaires, feu)' },
       { id: 'garages-5', libelle: 'Box fracturé ou vol' },
       { id: 'garages-6', libelle: 'Véhicule dégradé' },
       { id: 'garages-7', libelle: 'Déchets ou urine' },

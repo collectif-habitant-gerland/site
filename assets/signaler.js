@@ -175,12 +175,15 @@
       const lot = db.batch();
       lot.set(ref.collection(sous).doc(u.uid), { le: firebase.firestore.FieldValue.serverTimestamp() });
       const champs = {
-        theme, probleme: p.libelle,
         dernierLe: firebase.firestore.FieldValue.serverTimestamp(),
         total: firebase.firestore.FieldValue.increment(repare ? 0 : 1),
         repares: firebase.firestore.FieldValue.increment(repare ? 1 : 0)
       };
       if (!avant.exists) {
+        // Le thème et le libellé ne sont écrits qu'à la création : un renommage
+        // du catalogue ne doit jamais bloquer le compteur d'un problème déjà ouvert.
+        champs.theme = theme;
+        champs.probleme = p.libelle;
         champs.statut = 'ouvert';
         champs.premierLe = firebase.firestore.FieldValue.serverTimestamp();
         champs.repares = 0;
