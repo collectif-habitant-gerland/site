@@ -53,7 +53,13 @@
         const lot = db.batch();
         lot.set(refAvis, donnees);
         if (!deja) lot.set(db.collection('compteurs').doc(periode), { total: firebase.firestore.FieldValue.increment(1) }, { merge: true });
-        await avecDelai(lot.commit(), 15000);
+        try {
+          await avecDelai(lot.commit(), 15000);
+        } catch (e) {
+          // Page gardée en mémoire par le navigateur, ou consultation fermée entre-temps.
+          if (e && e.code === 'permission-denied') throw new Error('maj');
+          throw e;
+        }
       },
 
       async nombreParticipants(periode) {

@@ -361,10 +361,13 @@
       effacerBrouillon();
       rendreMerci();
     } catch (e) {
-      const texte = e && e.message === 'code'
-        ? 'Le code des résidents a changé. Revenez au début pour saisir le nouveau code : vos réponses sont gardées.'
+      const majSite = e && e.message === 'maj';
+      const texte = majSite
+        ? 'Le questionnaire a été mis à jour depuis l’ouverture de cette page, ou la consultation vient d’être fermée. Rechargez la page : vos réponses sont gardées.'
         : 'L’envoi n’a pas abouti. Vérifiez votre connexion : vos réponses sont gardées.';
-      zone.innerHTML = '<div class="alerte" role="alert">' + icone(e && e.message === 'code' ? 'cadenas' : 'reseau') + '<span>' + texte + '</span></div>';
+      zone.innerHTML = '<div class="alerte" role="alert">' + icone(majSite ? 'reseau' : 'reseau') + '<span>' + texte + '</span></div>' +
+        (majSite ? '<div class="actions"><button type="button" class="btn btn-principal" data-action="recharger">Recharger la page</button></div>' : '');
+      if (majSite) { const r = zone.querySelector('[data-action="recharger"]'); if (r) r.addEventListener('click', () => location.reload()); }
       bouton.disabled = false;
       bouton.innerHTML = icone('valider') + 'Réessayer l’envoi';
     } finally {
