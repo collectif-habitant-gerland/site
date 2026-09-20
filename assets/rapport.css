@@ -176,3 +176,4 @@ body.rapport { font-size: 16.5px; }
 .rp-avancee-ic .ic { width: 18px; height: 18px; }
 .rp-avancee-date { display: block; font-size: 12.5px; font-weight: 700; color: var(--vert); text-transform: uppercase; letter-spacing: .03em; }
 .rp-avancees p { margin: 4px 0 0; color: var(--doux); line-height: 1.5; }
+.rp-avenir { display: inline-block; margin-left: 8px; padding: 3px 10px; border-radius: 999px; background: var(--vert-pale); color: var(--vert-fonce); font-size: 12.5px; vertical-align: middle; font-weight: 700; }

@@ -55,8 +55,12 @@
   const trie = obj => Object.entries(obj || {}).sort((a, b) => b[1] - a[1]);
   // Le bailleur ne voit jamais d'effectifs : uniquement des parts, pour protéger le collectif.
   const partAvis = n => R.total ? Math.round(n / R.total * 100) : 0;
-  const partLogements = n => R.logements ? Math.min(100, Math.round(n / R.logements * 100)) : null;
-  const lienEnLigne = () => location.origin + location.pathname + '?id=' + encodeURIComponent(id);
+  function ampleur(n) {
+    const p = R.logements ? n / R.logements : (R.total ? n / R.total : 0);
+    if (p >= 0.2) return 'Très partagé';
+    if (p >= 0.08) return 'Partagé';
+    return 'Signalé';
+  }
   const dateFr = iso => iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
 
   // ---------- Affichage ----------
@@ -67,7 +71,6 @@
     const meilleur = notes[notes.length - 1];
     const glob = globale();
     const prio = trie(R.priorites)[0];
-    const taux = R.logements ? Math.round(R.total / R.logements * 100) : null;
 
     let h = '';
 
@@ -77,13 +80,9 @@
       '<p class="rp-meta">' + esc(R.adresses || '') + '</p>' +
       '<p class="rp-meta">' + (R.du ? 'Avis recueillis du ' + esc(dateFr(R.du)) + ' au ' + esc(dateFr(R.au)) + ' · ' : '') + 'Transmis le ' + esc(dateFr(R.creeLe)) + '</p></header>';
 
-    // Bloc imprimé : lien et QR code vers la version en ligne
-    h += '<section class="rp-qr impression-seule"><div class="rp-qr-code">' + qrSvg(lienEnLigne()) + '</div><div><strong>Version en ligne, détaillée et interactive</strong>' +
-      '<p>Scannez ce code ou ouvrez le lien ci-dessous. Vous pourrez aussi y répondre directement aux résidents.</p><p class="rp-lien">' + esc(lienEnLigne()) + '</p></div></section>';
 
     // Chiffres clés
     h += '<section class="rp-cles">' +
-      cle('Participation', (taux !== null ? taux + ' <small>%</small>' : '—'), 'des logements ont donné leur avis') +
       cle('Satisfaction globale', glob !== null ? anneau(glob) : '—', 'part des avis « plutôt bien » ou « très bien »') +
       cle('Priorité n° 1 des résidents', prio ? esc(theme(prio[0]).titre) : '—', prio ? partAvis(prio[1]) + ' % des répondants la placent en premier' : '', 'texte') +
       cle('Point le plus apprécié', meilleur ? esc(meilleur.t.titre) : '—', meilleur ? meilleur.p + ' % de satisfaits' : '', 'texte') +
@@ -91,7 +90,7 @@
 
     // En bref
     const bref = [];
-    bref.push(taux !== null ? taux + ' % des logements de la résidence ont donné leur avis.' : 'Les résidents ont été consultés de façon anonyme.');
+    bref.push('Les résidents ont été consultés de façon anonyme sur la vie collective de la résidence.');
     if (pire) bref.push('La première préoccupation porte sur « ' + pire.t.titre + ' » (' + pire.p + ' % de satisfaits).');
     if (meilleur && meilleur !== pire) bref.push('Le point le mieux perçu est « ' + meilleur.t.titre + ' » (' + meilleur.p + ' % de satisfaits).');
     h += '<section class="rp-bloc"><h2>En bref</h2><p class="rp-bref">' + esc(bref.join(' ')) + '</p>' +
@@ -108,7 +107,7 @@
 
     // Avancées obtenues
     if (!R.avancees || !R.avancees.length) {
-      h += '<section class="rp-bloc"><h2>Ce qui a changé</h2>' +
+      h += '<section class="rp-bloc"><h2>Ce qui a changé <span class="rp-avenir">À venir</span></h2>' +
         '<p class="rp-discret">Recensement en cours : les avancées obtenues seront reprises dans le prochain compte rendu.</p></section>';
     } else {
       h += '<section class="rp-bloc"><h2>Ce qui a changé</h2><p class="rp-sous">Les avancées constatées par les résidents depuis le dernier compte rendu.</p>' +
@@ -120,24 +119,24 @@
 
     // Problèmes signalés en cours
     if (!R.signalements || !R.signalements.length) {
-      h += '<section class="rp-bloc"><h2>Problèmes signalés</h2>' +
+      h += '<section class="rp-bloc"><h2>Problèmes signalés <span class="rp-avenir">À venir</span></h2>' +
         '<p class="rp-discret">Recueil en cours. Les résidents signalent désormais les problèmes directement en ligne : ils figureront dans le prochain compte rendu, avec leur ancienneté.</p></section>';
     } else {
       const jours = R.signalements.filter(x => typeof x.jours === 'number').map(x => x.jours);
       const plusLong = jours.length ? Math.max.apply(null, jours) : null;
       h += '<section class="rp-bloc"><h2>Problèmes signalés, non résolus</h2>' +
         '<p class="rp-sous">Signalés par les résidents eux-mêmes, du plus partagé au moins partagé' +
-        (plusLong !== null ? '. Le plus ancien attend depuis ' + plusLong + ' jour' + (plusLong > 1 ? 's' : '') : '') + '.</p>' +
-        '<div class="rp-table-zone"><table class="rp-table"><thead><tr><th>Problème</th><th>Thème</th><th>Résidences concernées</th><th>Depuis</th></tr></thead><tbody>' +
+        (plusLong ? '. Le plus ancien attend depuis ' + plusLong + ' jour' + (plusLong > 1 ? 's' : '') : '') + '.</p>' +
+        '<div class="rp-table-zone"><table class="rp-table"><thead><tr><th>Problème</th><th>Thème</th><th>Ampleur</th><th>Depuis</th></tr></thead><tbody>' +
         R.signalements.map(x => '<tr><td><strong>' + esc(x.probleme) + '</strong></td><td>' + esc(theme(x.theme).titre) + '</td>' +
-          '<td>' + (partLogements(x.total) !== null ? partLogements(x.total) + ' %' : '—') + '</td>' +
+          '<td>' + esc(ampleur(x.total)) + '</td>' +
           '<td>' + (typeof x.jours === 'number' ? (x.jours === 0 ? 'aujourd’hui' : x.jours + ' j') : '—') + '</td></tr>').join('') +
         '</tbody></table></div></section>';
     }
 
     // Satisfaction par thème (interactif)
     const bats = (R.batiments || []).filter(b => R.detailBatiments && R.detailBatiments.indexOf(b.id) >= 0);
-    h += '<section class="rp-bloc"><h2>Satisfaction par thème</h2><p class="rp-sous">Du thème le plus préoccupant au plus satisfaisant. Touchez un thème pour le détail.</p>' +
+    h += '<section class="rp-bloc"><h2>Satisfaction par thème</h2><p class="rp-sous">Du thème le plus préoccupant au plus satisfaisant.<span class="ecran-seul"> Touchez un thème pour le détail.</span></p>' +
       (bats.length ? '<div class="rp-puces ecran-seul" role="group" aria-label="Bâtiment">' +
         [{ id: 'tous', libelle: 'Toute la résidence' }].concat(bats.map(b => ({ id: b.id, libelle: b.libelle + ' ' + b.rue }))).map(b =>
           '<button type="button" class="rp-puce" data-bat="' + b.id + '" aria-pressed="' + (filtre === b.id) + '">' + esc(b.libelle) + '</button>').join('') + '</div>' : '') +
@@ -163,7 +162,7 @@
 
     // Demandes
     if (!R.demandes || !R.demandes.length) {
-      h += '<section class="rp-bloc"><h2>Demandes des résidents</h2>' +
+      h += '<section class="rp-bloc"><h2>Demandes des résidents <span class="rp-avenir">À venir</span></h2>' +
         '<p class="rp-discret">En cours de formulation : les demandes précises seront transmises dans le prochain compte rendu.</p></section>';
     } else {
       h += '<section class="rp-bloc"><h2>Demandes des résidents</h2><ol class="rp-demandes">' +
@@ -236,14 +235,6 @@
   function barres(liste, unite) {
     const max = unite === '%' ? 100 : Math.max(1, ...liste.map(x => x[1]));
     return '<div class="rp-barres">' + liste.map(([lib, n]) => '<div class="rp-barre"><span>' + esc(lib) + '</span><div class="rp-barre-piste"><div style="width:' + (n / max * 100) + '%"></div></div><b>' + n + (unite ? ' ' + unite : '') + '</b></div>').join('') + '</div>';
-  }
-
-  function qrSvg(texte) {
-    if (!window.qrcode) return '';
-    const q = window.qrcode(0, 'M');
-    q.addData(texte);
-    q.make();
-    return q.createSvgTag({ cellSize: 3, margin: 0, scalable: true });
   }
 
   function brancher() {

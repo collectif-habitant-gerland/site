@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Affiche à imprimer – La voix des habitants</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --vert: #1f6b4a; --vert-fonce: #16513a; --vert-pale: #e3f0e8;
+      --encre: #1c2a23; --doux: #5b6a62; --ligne: #e6e1d6; --fond: #f6f3ec;
+      --police: "Plus Jakarta Sans", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #d9d5cc; font-family: var(--police); color: var(--encre); }
+    .feuille {
+      width: 210mm; min-height: 297mm; margin: 20px auto; padding: 16mm 15mm 12mm;
+      background: #fff; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.18);
+    }
+    .bandeau {
+      display: inline-flex; align-items: center; gap: 8px; align-self: flex-start;
+      padding: 7px 16px; border-radius: 999px; background: var(--vert-pale); color: var(--vert-fonce);
+      font-weight: 700; font-size: 13pt;
+    }
+    h1 { font-size: 38pt; line-height: 1.04; letter-spacing: -.03em; margin: 9mm 0 5mm; font-weight: 800; }
+    h1 em { font-style: normal; color: var(--vert); }
+    .chapo { font-size: 14.5pt; line-height: 1.4; color: var(--doux); margin: 0 0 7mm; max-width: 155mm; }
+    .coeur { display: flex; gap: 12mm; align-items: center; }
+    .qr { width: 68mm; height: 68mm; flex: none; padding: 5mm; border: 2px solid var(--encre); border-radius: 6mm; }
+    .qr svg { width: 100%; height: 100%; display: block; }
+    .qr-sous { text-align: center; font-size: 11pt; font-weight: 700; margin-top: 3mm; }
+    .etapes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6mm; }
+    .etapes li { display: flex; gap: 5mm; align-items: flex-start; font-size: 14.5pt; line-height: 1.35; }
+    .num {
+      width: 11mm; height: 11mm; flex: none; border-radius: 50%; background: var(--vert); color: #fff;
+      display: grid; place-items: center; font-weight: 800; font-size: 14pt;
+    }
+    .etapes strong { display: block; }
+    .etapes span { color: var(--doux); font-size: 12.5pt; }
+    .lien {
+      margin: 7mm 0 0; padding: 6mm; border-radius: 4mm; background: var(--fond);
+      text-align: center; font-size: 13pt; color: var(--doux);
+    }
+    .lien b { display: block; color: var(--vert-fonce); font-size: 14.5pt; word-break: break-all; margin-top: 2mm; }
+    .promesses { display: flex; gap: 5mm; margin: 7mm 0 0; }
+    .promesse {
+      flex: 1; padding: 6mm 5mm; border: 1px solid var(--ligne); border-radius: 4mm; text-align: center;
+    }
+    .promesse strong { display: block; font-size: 15pt; color: var(--vert); }
+    .promesse span { font-size: 11.5pt; color: var(--doux); }
+    .pied {
+      margin-top: auto; padding-top: 6mm; border-top: 2px solid var(--ligne);
+      font-size: 11.5pt; color: var(--doux); line-height: 1.5;
+    }
+    .pied strong { color: var(--encre); }
+    @page { size: A4; margin: 0; }
+    @media print {
+      body { background: #fff; }
+      .feuille { margin: 0; box-shadow: none; width: 210mm; height: 297mm; min-height: 0; padding: 14mm 15mm 10mm; overflow: hidden; }
+    }
+  </style>
+</head>
+<body>
+  <div class="feuille">
+    <div class="bandeau">Initiative des habitants de la résidence</div>
+
+    <h1>Votre avis sur la résidence, en <em>2 minutes</em>.</h1>
+    <p class="chapo">Entre voisins, nous mettons en commun ce qui va bien et ce qui coince dans la résidence. Le but est simple : regrouper nos constats du quotidien, puis les partager au bailleur pour qu’il ait une vue d’ensemble.</p>
+
+    <div class="coeur">
+      <div>
+        <div class="qr" id="qr"></div>
+        <div class="qr-sous">Scannez avec l’appareil photo</div>
+      </div>
+      <ol class="etapes">
+        <li><span class="num">1</span><div><strong>Ouvrez l’appareil photo</strong><span>Visez le carré, puis touchez le lien qui apparaît.</span></div></li>
+        <li><span class="num">2</span><div><strong>Touchez des smileys</strong><span>Une question par écran. Rien à écrire, rien à installer.</span></div></li>
+        <li><span class="num">3</span><div><strong>C’est tout</strong><span>Vous pouvez aussi signaler un problème en deux touches.</span></div></li>
+      </ol>
+    </div>
+
+    <div class="promesses">
+      <div class="promesse"><strong>Anonyme</strong><span>Ni nom, ni adresse, ni bâtiment</span></div>
+      <div class="promesse"><strong>2 minutes</strong><span>Depuis le canapé ou le métro</span></div>
+      <div class="promesse"><strong>Constructif</strong><span>Ce qui va bien compte aussi</span></div>
+    </div>
+
+    <div class="lien">Sans smartphone ? Tapez cette adresse dans un navigateur :<b id="adresse"></b></div>
+
+    <p class="pied"><strong>Affiche réalisée par des habitants de la résidence.</strong> Une démarche entre voisins, ouverte et constructive : on dit ce qui va bien autant que ce qui reste à améliorer. Elle n’émane pas du bailleur. Plus nous serons nombreux, plus notre compte rendu sera représentatif. Merci à chacun.</p>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+  <script>
+    (function () {
+      const adresse = 'https://collectif-habitant-gerland.github.io/site/';
+      document.getElementById('adresse').textContent = adresse;
+      const q = qrcode(0, 'M');
+      q.addData(adresse);
+      q.make();
+      document.getElementById('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+    })();
+  </script>
+</body>
+</html>
