@@ -53,7 +53,9 @@ window.VOIX_CONFIG = {
       { id: 'acces-5', libelle: 'Boîte aux lettres forcée ou ouverte' },
       { id: 'acces-6', libelle: 'Local poubelle ou technique ouvert' },
       { id: 'acces-7', libelle: 'Personne inconnue dans les parties communes' },
-      { id: 'acces-8', libelle: 'Personnes qui dorment dans le hall ou l’escalier' }
+      { id: 'acces-8', libelle: 'Personnes qui dorment dans le hall ou l’escalier' },
+      { id: 'acces-9', libelle: 'Badge qui refuse l’accès régulièrement' },
+      { id: 'acces-10', libelle: 'Porte qui ne s’ouvre qu’après plusieurs essais' }
     ],
     garages: [
       { id: 'garages-1', libelle: 'Portail en panne ou bloqué' },

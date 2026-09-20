@@ -154,7 +154,10 @@ body.rapport { font-size: 16.5px; }
   .rp-hero { padding-top: 0; }
   .rp-hero h1 { font-size: 26px; margin: 10px 0 6px; }
   .rp-cles { grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .rp-cle, .rp-bloc { box-shadow: none; break-inside: avoid; }
+  .rp-cle { box-shadow: none; break-inside: avoid; }
+  .rp-bloc { box-shadow: none; break-inside: auto; }
+  .rp-bloc h2 { break-after: avoid; }
+  .rp-theme, .rp-barre, .rp-liste-ok li, .rp-demandes li, .rp-avancees li, .rp-table tr { break-inside: avoid; }
   .rp-bloc { padding: 14px 16px; margin-top: 10px; }
   .rp-cle-valeur { font-size: 28px; }
   .rp-theme-tete { padding: 5px 6px; cursor: default; }
