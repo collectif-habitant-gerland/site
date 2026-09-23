@@ -371,7 +371,8 @@
     if (!brouillons[periode]) {
       const classes = C.themes.map(t => Object.assign({ t }, statsTheme(avisP, t.id)))
         .filter(x => x.n).sort((a, b) => a.satisfaits - b.satisfaits);
-      const retenus = classes.slice(0, 4).map(x => x.t.id);
+      // Les 4 thèmes les plus préoccupants, et toujours la sécurité des accès et des garages.
+      const retenus = Array.from(new Set(classes.slice(0, 4).map(x => x.t.id).concat(['acces', 'garages'])));
       brouillons[periode] = {
         periodeLibelle: libellePeriode(periode),
         titre: 'Baromètre des résidents – ' + libellePeriode(periode),
