@@ -169,3 +169,5 @@ a.ck-btn.principal { color: #fff; }
 .ck-sous-titre { font-size: 14px; color: var(--doux); margin: 22px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
 .ck-form select.ck-select { min-height: 44px; }
 .ck-form input[type="date"] { font: inherit; }
+.ck-dialogue-large { max-width: 680px; }
+.ck-dialogue-large textarea { font: inherit; font-size: 14.5px; line-height: 1.5; resize: vertical; }

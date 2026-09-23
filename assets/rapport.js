@@ -78,7 +78,7 @@
     h += '<header class="rp-hero"><div class="rp-surtitre">' + icone('ecoute') + 'Compte rendu des résidents' + (R.destinataire ? ' · à l’attention de ' + esc(R.destinataire) : '') + '</div>' +
       '<h1>' + esc(R.titre) + '</h1>' +
       '<p class="rp-meta">' + esc(R.adresses || '') + '</p>' +
-      '<p class="rp-meta">' + (R.du ? 'Avis recueillis du ' + esc(dateFr(R.du)) + ' au ' + esc(dateFr(R.au)) + ' · ' : '') + 'Transmis le ' + esc(dateFr(R.creeLe)) + '</p></header>';
+      '<p class="rp-meta">Période : ' + esc(R.periodeLibelle || '') + ' · Transmis le ' + esc(dateFr(R.creeLe)) + '</p></header>';
 
 
     // Chiffres clés

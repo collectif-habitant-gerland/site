@@ -373,6 +373,7 @@
         .filter(x => x.n).sort((a, b) => a.satisfaits - b.satisfaits);
       const retenus = classes.slice(0, 4).map(x => x.t.id);
       brouillons[periode] = {
+        periodeLibelle: libellePeriode(periode),
         titre: 'Baromètre des résidents – ' + libellePeriode(periode),
         destinataire: 'Erilia',
         signature: C.signature,
@@ -392,8 +393,9 @@
       '<p class="ck-sous">' + esc(libellePeriode(periode)) + ' · ' + avisP.length + ' avis. Les chiffres seront figés au moment de la création : les avis arrivés ensuite n’y figureront pas.</p>' +
       '<form id="form-cr" class="ck-form" novalidate>' +
       '<div class="ck-champs"><label>Titre<input name="titre" maxlength="140" value="' + esc(b.titre) + '"></label>' +
-      '<label>À l’attention de<input name="destinataire" maxlength="80" value="' + esc(b.destinataire) + '"></label></div>' +
-      '<label>Signature<input name="signature" maxlength="120" value="' + esc(b.signature) + '"></label>' +
+      '<label>Période affichée<input name="periodeLibelle" maxlength="60" value="' + esc(b.periodeLibelle) + '"></label></div>' +
+      '<div class="ck-champs"><label>À l’attention de<input name="destinataire" maxlength="80" value="' + esc(b.destinataire) + '"></label>' +
+      '<label>Signature<input name="signature" maxlength="120" value="' + esc(b.signature) + '"></label></div>' +
       '<label>Message d’introduction<textarea name="intro" rows="4" maxlength="1500">' + esc(b.intro) + '</textarea></label>' +
       '<fieldset class="ck-demandes"><legend>Demandes des résidents <span>(cochez celles à inclure, le texte est modifiable)</span></legend>' +
       ordre.map(x => { const d = b.demandes[x.t.id];
@@ -413,7 +415,8 @@
         const nb = reponses.filter(x => x.rapport === r.id).length;
         return '<div class="ck-rapport"><div><strong>' + esc(r.titre) + '</strong><span>Créé le ' + esc(new Date(r.creeLe).toLocaleDateString('fr-FR')) + ' · ' + r.total + ' avis' +
           (nb ? ' · ' + nb + ' réponse' + (nb > 1 ? 's' : '') + ' du bailleur' : '') + '</span></div>' +
-          '<div class="ck-actions-bas"><a class="ck-btn principal" href="' + lienRapport(r.id, true) + '" target="_blank" rel="noopener">' + icone('telecharger') + 'PDF</a>' +
+          '<div class="ck-actions-bas"><button class="ck-btn principal" type="button" data-mail="' + esc(r.id) + '">' + icone('ecoute') + 'Préparer le mail</button>' +
+          '<a class="ck-btn" href="' + lienRapport(r.id, true) + '" target="_blank" rel="noopener">' + icone('telecharger') + 'PDF</a>' +
           '<a class="ck-btn" href="' + lienRapport(r.id) + '" target="_blank" rel="noopener">Ouvrir</a>' +
           '<button class="ck-btn" type="button" data-copier="' + esc(r.id) + '">Copier le lien</button>' +
           '<button class="ck-btn danger" type="button" data-retirer="' + esc(r.id) + '">Retirer</button></div></div>'; }).join('') + '</div>'
@@ -443,7 +446,7 @@
   function brancherCompteRendu() {
     const form = document.getElementById('form-cr');
     const b = brouillons[periode];
-    ['titre', 'destinataire', 'signature', 'intro'].forEach(k => form[k].addEventListener('input', e => { b[k] = e.target.value; }));
+    ['titre', 'periodeLibelle', 'destinataire', 'signature', 'intro'].forEach(k => form[k].addEventListener('input', e => { b[k] = e.target.value; }));
     form.querySelectorAll('[data-dem-on]').forEach(c => c.addEventListener('change', () => {
       const id = c.dataset.demOn;
       b.demandes[id].on = c.checked;
@@ -458,6 +461,7 @@
     }, 0));
     form.addEventListener('submit', e => { e.preventDefault(); creerCompteRendu(); });
 
+    $app.querySelectorAll('[data-mail]').forEach(x => x.addEventListener('click', () => preparerMail(x.dataset.mail)));
     $app.querySelectorAll('[data-copier]').forEach(x => x.addEventListener('click', async () => {
       try { await navigator.clipboard.writeText(lienRapport(x.dataset.copier)); x.textContent = 'Lien copié'; }
       catch (err) { window.prompt('Copiez ce lien :', lienRapport(x.dataset.copier)); }
@@ -473,6 +477,89 @@
       const ok = await confirmer({ titre: 'Supprimer ce message ?', texte: 'Le message du bailleur sera définitivement effacé.', oui: 'Supprimer', non: 'Annuler' });
       if (ok) db.collection('reponses').doc(x.dataset.supprRep).delete().catch(err => alert('Suppression impossible (' + (err.code || err.message) + ').'));
     }));
+  }
+
+  // ---------- Mail prêt à envoyer ----------
+  const sommeDist = d => d ? (d[1] || 0) + (d[2] || 0) + (d[3] || 0) + (d[4] || 0) : 0;
+  const pctSatisfaits = d => { const n = sommeDist(d); return n ? Math.round(((d[3] || 0) + (d[4] || 0)) / n * 100) : null; };
+
+  function texteMail(r) {
+    const lien = lienRapport(r.id);
+    const notes = (r.themesDef || []).map(t => ({ t, p: pctSatisfaits(((r.themes || {})[t.id] || {}).tous) }))
+      .filter(x => x.p !== null).sort((a, b) => a.p - b.p);
+    const pire = notes[0];
+    const meilleur = notes[notes.length - 1];
+    let s = 0, n = 0;
+    (r.themesDef || []).forEach(t => { const d = ((r.themes || {})[t.id] || {}).tous; if (d) { s += (d[3] || 0) + (d[4] || 0); n += sommeDist(d); } });
+    const globale = n ? Math.round(s / n * 100) : null;
+    const prio = Object.entries(r.priorites || {}).sort((a, b) => b[1] - a[1])[0];
+    const titrePrio = prio ? ((r.themesDef || []).find(t => t.id === prio[0]) || {}).titre : null;
+    const signal = (r.signalements || [])[0];
+
+    const lignes = [];
+    if (globale !== null) lignes.push('• Satisfaction globale : ' + globale + ' % d’avis favorables');
+    if (pire) lignes.push('• Première préoccupation : ' + pire.t.titre + ' (' + pire.p + ' % de satisfaits)');
+    if (meilleur && meilleur !== pire) lignes.push('• Point le mieux perçu : ' + meilleur.t.titre + ' (' + meilleur.p + ' % de satisfaits)');
+    if (titrePrio) lignes.push('• Priorité n° 1 des résidents : ' + titrePrio);
+    if (signal) lignes.push('• Problème le plus partagé : ' + signal.probleme + (typeof signal.jours === 'number' && signal.jours > 0 ? ' (signalé depuis ' + signal.jours + ' jours)' : ''));
+
+    const corps = [
+      'Bonjour,',
+      '',
+      'Entre voisins, nous avons mis en commun notre regard sur la vie de la résidence (' + (r.adresses || '') + ') pour la période de ' + (r.periodeLibelle || '') + '.',
+      'La démarche est anonyme et porte uniquement sur des sujets collectifs : ce qui fonctionne autant que ce qui reste à améliorer.',
+      '',
+      'En quelques lignes :',
+      lignes.join('\n'),
+      '',
+      'Le compte rendu complet, avec les graphiques, le détail par thème et nos demandes :',
+      lien,
+      '',
+      'Vous pouvez nous répondre directement depuis cette page : votre message nous parviendra.',
+      '',
+      'Bien cordialement,',
+      r.signature || C.signature
+    ].join('\n');
+
+    return { objet: 'Compte rendu des résidents – ' + (r.periodeLibelle || ''), corps, lien };
+  }
+
+  function preparerMail(id) {
+    const r = rapports.find(x => x.id === id);
+    if (!r) return;
+    const m = texteMail(r);
+    const voile = document.createElement('div');
+    voile.className = 'voile';
+    voile.innerHTML = '<div class="dialogue ck-dialogue-large" role="dialog" aria-modal="true" aria-labelledby="m-titre">' +
+      '<h3 id="m-titre">Mail à envoyer au bailleur</h3>' +
+      '<p>Relisez, modifiez si besoin, puis copiez-le ou ouvrez-le directement dans votre messagerie.</p>' +
+      '<label class="ck-dialogue-champ">Objet<input id="m-objet" value="' + esc(m.objet) + '"></label>' +
+      '<label class="ck-dialogue-champ">Message<textarea id="m-corps" rows="16">' + esc(m.corps) + '</textarea></label>' +
+      '<div id="m-etat" class="ck-note"></div>' +
+      '<div class="actions" style="margin-top:0"><button type="button" class="btn btn-principal" data-m="copier">Copier le mail</button>' +
+      '<button type="button" class="btn btn-secondaire" data-m="mail">Ouvrir dans ma messagerie</button>' +
+      '<button type="button" class="btn btn-discret" data-m="fermer">Fermer</button></div></div>';
+    document.body.appendChild(voile);
+    const objet = () => voile.querySelector('#m-objet').value;
+    const corps = () => voile.querySelector('#m-corps').value;
+    voile.addEventListener('click', async e => {
+      if (e.target === voile) return voile.remove();
+      const b = e.target.closest('[data-m]');
+      if (!b) return;
+      if (b.dataset.m === 'fermer') return voile.remove();
+      if (b.dataset.m === 'copier') {
+        try {
+          await navigator.clipboard.writeText(objet() + '\n\n' + corps());
+          voile.querySelector('#m-etat').textContent = 'Mail copié : collez-le dans votre messagerie.';
+        } catch (err) {
+          voile.querySelector('#m-corps').select();
+          voile.querySelector('#m-etat').textContent = 'Copie automatique impossible : faites ⌘C, le texte est sélectionné.';
+        }
+      }
+      if (b.dataset.m === 'mail') {
+        location.href = 'mailto:?subject=' + encodeURIComponent(objet()) + '&body=' + encodeURIComponent(corps());
+      }
+    });
   }
 
   function jeton() {
@@ -507,7 +594,7 @@
 
     return {
       version: 1,
-      periode, periodeLibelle: libellePeriode(periode),
+      periode, periodeLibelle: (b.periodeLibelle || '').trim() || libellePeriode(periode),
       titre: b.titre.trim() || 'Baromètre des résidents', destinataire: b.destinataire.trim(),
       signature: b.signature.trim() || C.signature, adresses: C.adresses, intro: b.intro.trim(),
       demandes: C.themes.filter(t => b.demandes[t.id].on && b.demandes[t.id].texte.trim()).map(t => ({ theme: t.id, texte: b.demandes[t.id].texte.trim() })),
